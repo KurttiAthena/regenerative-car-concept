@@ -1,54 +1,37 @@
 import streamlit as st
-from car_physics_model import regenerative_car
+import numpy as np
+import matplotlib.pyplot as plt
+
+from car_physics_model import calculate_energy, automatic_efficiency
 
 
-# ------------------------
-# PAGE CONFIG
-# ------------------------
 
 st.set_page_config(
-    page_title="Regenerative Car Simulator",
+    page_title="Regenerative Car Model",
     page_icon="🚗"
 )
 
 
-st.title("🚗 Regenerative Car Physics Model")
-
-st.write(
-"""
-Simple 0D energy balance model for a turbine-assisted EV.
-Compare:
-- Version 1: turbine always open
-- Version 2: turbine opens only at target speed
-"""
-)
+st.title("🚗 Regenerative Car Simulator")
 
 
-# ------------------------
-# INPUTS
-# ------------------------
+# -------------------
+# GLOBAL INPUTS
+# -------------------
 
-st.sidebar.header("Vehicle Parameters")
+st.sidebar.header("Vehicle")
 
 
 mass = st.sidebar.slider(
-    "Vehicle mass (kg)",
+    "Mass (kg)",
     500,
     3000,
     2000
 )
 
 
-speed = st.sidebar.slider(
-    "Vehicle speed (km/h)",
-    0,
-    250,
-    100
-)
-
-
 LD = st.sidebar.slider(
-    "Aerodynamic L/D ratio",
+    "L/D ratio",
     2.0,
     15.0,
     8.0
@@ -64,120 +47,169 @@ diameter = st.sidebar.slider(
 
 
 
-# Efficiency
-
-st.sidebar.header("Efficiency")
+eff = automatic_efficiency()
 
 
-mode = st.sidebar.radio(
-    "Efficiency calculation",
+
+# -------------------
+# TABS
+# -------------------
+
+tab1, tab2 = st.tabs(
     [
-        "Automatic",
-        "Manual"
+        "Version 1 - Always Open",
+        "Version 2 - Smart Gates"
     ]
 )
 
 
-if mode == "Manual":
 
-    efficiency = st.sidebar.slider(
-        "System efficiency (%)",
-        1,
+# ==================================================
+# VERSION 1
+# ==================================================
+
+with tab1:
+
+
+    st.header(
+        "Turbine exposed at all speeds"
+    )
+
+
+    speed = st.slider(
+        "Vehicle speed",
+        0,
+        250,
         100,
-        40
-    ) / 100
+        key="v1"
+    )
 
 
-else:
-
-    efficiency = 0.4
-
-
-
-# ------------------------
-# CALCULATIONS
-# ------------------------
-
-if st.button("Calculate"):
-
-
-    st.subheader("Version 1 - Turbine always open")
-
-
-    result1 = regenerative_car(
+    result = calculate_energy(
         mass,
         speed,
         LD,
         diameter,
-        "manual",
-        efficiency
+        eff
     )
 
 
-    col1,col2,col3 = st.columns(3)
-
-
-    col1.metric(
+    st.metric(
         "Recovered power",
-        f"{result1['recovered electricity W']} W"
+        f"{result['recovered_power']:.0f} W"
     )
 
-    col2.metric(
-        "Drag penalty",
-        f"{result1['turbine drag penalty W']} W"
-    )
 
-    col3.metric(
+    st.metric(
         "Net balance",
-        f"{result1['net balance W']} W"
+        f"{result['net_power']:.0f} W"
     )
 
 
 
-    st.divider()
+# ==================================================
+# VERSION 2
+# ==================================================
+
+with tab2:
 
 
-
-    st.subheader(
-        "Version 2 - Smart opening turbine"
+    st.header(
+        "Turbine opens only after threshold speed"
     )
 
 
-    st.info(
-        "For this first version the turbine opens exactly at the selected speed."
+    opening_speed = st.slider(
+        "Gate opening speed (km/h)",
+        20,
+        200,
+        80
     )
 
 
-    result2 = regenerative_car(
-        mass,
-        speed,
-        LD,
-        diameter,
-        "manual",
-        efficiency
+    max_speed = st.slider(
+        "Maximum vehicle speed",
+        opening_speed,
+        250,
+        150
     )
 
 
-    col1,col2 = st.columns(2)
-
-
-    col1.metric(
-        "Energy recovered",
-        f"{result2['% aerodynamic energy recovered']} %"
+    speeds = np.linspace(
+        opening_speed,
+        max_speed,
+        100
     )
 
 
-    col2.metric(
-        "Efficiency used",
-        f"{result2['efficiency used']} %"
+    recovered = []
+    net = []
+
+
+    for s in speeds:
+
+
+        result = calculate_energy(
+            mass,
+            s,
+            LD,
+            diameter,
+            eff
+        )
+
+
+        recovered.append(
+            result["recovered_power"]
+        )
+
+
+        net.append(
+            result["net_power"]
+        )
+
+
+
+    fig, ax = plt.subplots()
+
+
+    ax.plot(
+        speeds,
+        recovered,
+        label="Recovered power"
     )
 
 
+    ax.plot(
+        speeds,
+        net,
+        label="Net balance"
+    )
 
-    st.divider()
+
+    ax.axhline(
+        0
+    )
 
 
-    st.subheader("Detailed Energy Balance")
+    ax.set_xlabel(
+        "Speed (km/h)"
+    )
+
+    ax.set_ylabel(
+        "Power (W)"
+    )
 
 
-    st.json(result1)
+    ax.legend()
+
+
+    st.pyplot(fig)
+
+
+
+    st.write(
+        """
+        The turbine remains closed below the gate speed.
+        Above this speed, energy recovery increases approximately with V³.
+        """
+    )
