@@ -25,11 +25,7 @@ def calculate_energy(
     V = speed_kmh / 3.6
 
 
-    # approximate frontal area
     frontal_area = 0.0005 * mass
-
-
-    # drag coefficient approximation
 
     Cd = 1 / LD_ratio
 
@@ -46,8 +42,6 @@ def calculate_energy(
     drag_power = drag_force * V
 
 
-
-    # turbine
 
     turbine_area = math.pi*(turbine_diameter/2)**2
 
@@ -83,12 +77,6 @@ def calculate_energy(
         "net_power": net_power,
 
         "recovery_percentage":
-            recovered_power / drag_power *100
+            recovered_power / drag_power * 100
 
     }
-
-
-for k,v in result2.items():
-    print(k,":",v)
-
-
