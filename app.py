@@ -1,5 +1,5 @@
 import streamlit as st
-from car_physics_model import car_physics_model.py
+from car_physics_model import regenerative_car
 
 
 # ------------------------
