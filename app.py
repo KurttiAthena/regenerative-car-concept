@@ -152,7 +152,8 @@ with tab1:
         LD,
         diameter,
         eff,
-        True
+        True,
+        grade
     )
 
 
@@ -200,7 +201,8 @@ with tab1:
             LD,
             diameter,
             eff,
-            True
+            True, 
+            grade
         )
 
         recovery.append(
@@ -293,7 +295,8 @@ with tab2:
             LD,
             diameter,
             eff,
-            turbine_active
+            turbine_active,
+            grade
         )
 
         data.append(
