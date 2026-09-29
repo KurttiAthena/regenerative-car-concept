@@ -21,6 +21,33 @@ def get_efficiency(mode, user_value):
         return user_value / 100
 
 
+def find_activation_speed(
+        mass,
+        LD_ratio,
+        turbine_diameter,
+        efficiency
+):
+
+    for speed in range(1,251):
+
+        result = calculate_energy(
+            mass,
+            speed,
+            LD_ratio,
+            turbine_diameter,
+            efficiency,
+            True
+        )
+
+
+        if result["net_power"] >= 0:
+
+            return speed
+
+
+    return None
+
+
 
 def calculate_energy(
         mass,
