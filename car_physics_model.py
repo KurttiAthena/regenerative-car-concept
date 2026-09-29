@@ -5,14 +5,20 @@ AIR_DENSITY = 1.225
 
 
 
-def automatic_efficiency():
+def get_efficiency(mode, user_value):
 
-    turbine = 0.40
-    generator = 0.90
-    electronics = 0.90
+    if mode == "Realistic":
 
-    return turbine * generator * electronics
+        turbine = 0.40
+        generator = 0.90
+        electronics = 0.90
 
+        return turbine * generator * electronics
+
+
+    else:
+
+        return user_value / 100
 
 
 
