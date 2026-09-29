@@ -6,7 +6,7 @@ import pandas as pd
 from car_physics_model import (
     calculate_energy,
     get_efficiency,
-    find_activation_speed
+    find_energy_positive_speed
 )
 
 
@@ -96,16 +96,6 @@ if variable_cycle:
             "Stationary wind"
         ]
     )
-
-
-    if cycle=="Downhill":
-
-        angle = st.sidebar.slider(
-            "Downhill angle (degrees)",
-            0,
-            30,
-            5
-        )
 
     grade = st.sidebar.slider(
         "Road gradient (%)",
@@ -359,11 +349,12 @@ with tab2:
 
     st.dataframe(df)
 
-    optimal_speed = find_activation_speed(
+    optimal_speed = find_energy_positive_speed(
         mass,
         LD,
         diameter,
-        eff
+        eff, 
+        grade
     )
 
 
