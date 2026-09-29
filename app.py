@@ -387,3 +387,24 @@ with tab2:
         st.warning(
             "Turbine never reaches positive energy balance"
         )
+
+    positive = find_positive_cases(
+        mass,
+        LD,
+        diameter,
+        eff,
+        speed_min,
+        speed_max
+    )
+
+    if positive:
+
+        st.success(
+            f"Positive energy balance found between {min(positive)}-{max(positive)} km/h"
+        )
+
+    else:
+
+        st.warning(
+            "No positive energy balance in this speed range"
+        )
