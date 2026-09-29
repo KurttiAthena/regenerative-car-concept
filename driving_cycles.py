@@ -12,59 +12,36 @@ def get_speed_range(name):
     else:
         return 0, 0
 
-def calculate_regenerative_braking(
-        mass,
-        initial_speed,
-        final_speed,
+def calculate_turbine_braking(
+        speed,
         duration,
+        turbine_diameter,
         efficiency
 ):
 
-    v_initial = initial_speed / 3.6
-    v_final = final_speed / 3.6
+    V = speed / 3.6
 
 
-    energy_lost = (
+    turbine_area = (
+        3.14159 *
+        (turbine_diameter/2)**2
+    )
+
+
+    wind_power = (
         0.5 *
-        mass *
-        (
-            v_initial**2 -
-            v_final**2
-        )
+        1.225 *
+        turbine_area *
+        V**3
     )
 
 
     recovered_energy = (
-        energy_lost *
-        efficiency
-    )
-
-
-    power = (
-        recovered_energy /
+        wind_power *
+        efficiency *
         duration
     )
 
 
-    return power
+    return recovered_energy
 
-
-for step in cycle:
-
-    start_speed = step[0]
-    end_speed = step[1]
-    duration = step[2]
-
-
-    if end_speed < start_speed:
-
-        regen_power = calculate_braking_power(
-            mass,
-            start_speed,
-            end_speed,
-            duration
-        )
-
-    else:
-
-        regen_power = 0
