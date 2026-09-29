@@ -107,6 +107,13 @@ if variable_cycle:
             5
         )
 
+    grade = st.sidebar.slider(
+        "Road gradient (%)",
+        -20,
+        20,
+        0
+    )
+
 
 # -------------------
 # TABS
