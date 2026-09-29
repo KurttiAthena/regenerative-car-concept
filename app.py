@@ -3,7 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from car_physics_model import calculate_energy, get_efficiency
+from car_physics_model import (
+    calculate_energy,
+    get_efficiency,
+    find_activation_speed
+)
 
 
 
@@ -67,9 +71,13 @@ if eff_mode=="Idealised slider":
 
 else:
 
-    efficiency = 32
+    efficiency = 0
 
-eff = get_efficiency()
+
+eff = get_efficiency(
+    eff_mode,
+    efficiency
+)
 
 variable_cycle = st.sidebar.checkbox(
     "Enable variable driving cycle"
@@ -88,6 +96,16 @@ if variable_cycle:
             "Stationary wind"
         ]
     )
+
+
+    if cycle=="Downhill":
+
+        angle = st.sidebar.slider(
+            "Downhill angle (degrees)",
+            0,
+            30,
+            5
+        )
 
 
 # -------------------
@@ -259,15 +277,17 @@ with tab2:
     for s in speeds:
 
 
+        turbine_active = s >= opening_speed
+
+
         r=calculate_energy(
             mass,
             s,
             LD,
             diameter,
             eff,
-            True
+            turbine_active
         )
-
 
         data.append(
             [
@@ -333,7 +353,7 @@ with tab2:
         mass,
         LD,
         diameter,
-        efficiency
+        eff
     )
 
 
