@@ -190,8 +190,8 @@ def calculate_energy(
 
         "total_power_effect": total_power_effect,
 
-        "recovery_percentage": recovery_percentage
+        "recovery_percentage": recovery_percentage,
 
-        "gravity_power": gravity_power,
+        "gravity_power": gravity_power
 
     }
