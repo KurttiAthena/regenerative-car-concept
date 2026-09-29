@@ -20,6 +20,20 @@ def get_efficiency(mode, user_value):
 
         return user_value / 100
 
+def calculate_gravity_power(mass, speed_kmh, grade):
+
+    V = speed_kmh / 3.6
+
+    angle = math.atan(grade / 100)
+
+    gravity_power = (
+        mass *
+        9.81 *
+        V *
+        math.sin(angle)
+    )
+
+    return -gravity_power
 
 def find_activation_speed(
         mass,
@@ -55,13 +69,19 @@ def calculate_energy(
         LD_ratio,
         turbine_diameter,
         efficiency,
-        turbine_active=True
+        turbine_active=True,
+        grade=0
 ):
 
 
     V = speed_kmh / 3.6
 
-
+    gravity_power = calculate_gravity_power(
+        mass,
+        speed_kmh,
+        grade
+    )
+    
     # Vehicle aerodynamics
 
     frontal_area = 0.0005 * mass
@@ -119,6 +139,7 @@ def calculate_energy(
 
 
     net_power = (
+        gravity_power +
         recovered_power -
         turbine_drag_power
     )
@@ -161,5 +182,7 @@ def calculate_energy(
         "total_power_effect": total_power_effect,
 
         "recovery_percentage": recovery_percentage
+
+        "gravity_power": gravity_power,
 
     }
