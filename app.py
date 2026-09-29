@@ -85,17 +85,28 @@ variable_cycle = st.sidebar.checkbox(
 
 if variable_cycle:
 
+    if variable_cycle:
+
     cycle = st.sidebar.selectbox(
         "Driving scenario",
         [
             "City",
             "Highway",
-            "Motorway",
-            "Downhill",
-            "Braking",
-            "Stationary wind"
+            "Motorway"
         ]
     )
+
+    if cycle == "City":
+        speed_min = 20
+        speed_max = 50
+
+    elif cycle == "Highway":
+        speed_min = 50
+        speed_max = 100
+
+    elif cycle == "Motorway":
+        speed_min = 100
+        speed_max = 150
 
     grade = st.sidebar.slider(
         "Road gradient (%)",
