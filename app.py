@@ -104,6 +104,13 @@ if variable_cycle:
         0
     )
 
+    braking = st.sidebar.slider(
+        "Braking intensity (%)",
+        0,
+        100,
+        0
+    )
+
 
 # -------------------
 # TABS
