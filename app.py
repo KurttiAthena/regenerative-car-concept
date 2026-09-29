@@ -6,7 +6,8 @@ import pandas as pd
 from car_physics_model import (
     calculate_energy,
     get_efficiency,
-    find_energy_positive_speed
+    find_activation_speed, 
+    find_positive_cases
 )
 
 
@@ -85,7 +86,6 @@ variable_cycle = st.sidebar.checkbox(
 
 if variable_cycle:
 
-    if variable_cycle:
 
     cycle = st.sidebar.selectbox(
         "Driving scenario",
@@ -367,7 +367,7 @@ with tab2:
 
     st.dataframe(df)
 
-    optimal_speed = find_energy_positive_speed(
+    optimal_speed = find_activation_speed(
         mass,
         LD,
         diameter,
