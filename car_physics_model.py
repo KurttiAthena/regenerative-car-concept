@@ -41,7 +41,8 @@ def find_positive_cases(
         turbine_diameter,
         efficiency,
         speed_min,
-        speed_max
+        speed_max, 
+        grade=0
 ):
 
     positive_speeds = []
@@ -54,7 +55,8 @@ def find_positive_cases(
             LD_ratio,
             turbine_diameter,
             efficiency,
-            True
+            True, 
+            grade
         )
 
         if result["net_power"] > 0:
@@ -63,7 +65,7 @@ def find_positive_cases(
 
     return positive_speeds
 
-def find_energy_positive_speed(
+def find_activation_speed(
         mass,
         LD_ratio,
         turbine_diameter,
@@ -166,18 +168,9 @@ def calculate_energy(
 
         turbine_drag_power = 0
 
-    braking_power = (
-        mass *
-        deceleration *
-        V
-        *
-        regen_efficiency
-    )
-
     net_power = (
         gravity_power +
-        recovered_power +
-        braking_power - 
+        recovered_power -
         turbine_drag_power
     )
 
