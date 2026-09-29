@@ -157,7 +157,6 @@ def calculate_energy(
             efficiency
         )
 
-
         turbine_drag_power = (
             available_wind_power
         )
@@ -165,13 +164,17 @@ def calculate_energy(
     else:
 
         recovered_power = 0
-
         turbine_drag_power = 0
+
+    turbine_net_effect = (
+        recovered_power -
+        turbine_drag_power
+    )
+
 
     net_power = (
         gravity_power +
-        recovered_power -
-        turbine_drag_power
+        turbine_net_effect
     )
 
 
@@ -213,6 +216,8 @@ def calculate_energy(
 
         "recovery_percentage": recovery_percentage,
 
-        "gravity_power": gravity_power
+        "gravity_power": gravity_power, 
+
+        "turbine_net_effect": turbine_net_effect
 
     }
