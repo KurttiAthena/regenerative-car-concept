@@ -138,11 +138,18 @@ def calculate_energy(
 
         turbine_drag_power = 0
 
-
+    braking_power = (
+        vehicle_mass *
+        deceleration *
+        V
+        *
+        regen_efficiency
+    )
 
     net_power = (
         gravity_power +
-        recovered_power -
+        recovered_power +
+        braking_power - 
         turbine_drag_power
     )
 
