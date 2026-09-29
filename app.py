@@ -71,6 +71,23 @@ else:
 
 eff = get_efficiency()
 
+variable_cycle = st.sidebar.checkbox(
+    "Enable variable driving cycle"
+)
+
+if variable_cycle:
+
+    cycle = st.sidebar.selectbox(
+        "Driving scenario",
+        [
+            "City",
+            "Highway",
+            "Motorway",
+            "Downhill",
+            "Braking",
+            "Stationary wind"
+        ]
+    )
 
 
 # -------------------
@@ -311,3 +328,23 @@ with tab2:
 
 
     st.dataframe(df)
+
+    optimal_speed = find_activation_speed(
+        mass,
+        LD,
+        diameter,
+        efficiency
+    )
+
+
+    if optimal_speed:
+
+        st.success(
+             f"Turbine becomes energetically useful at approximately {optimal_speed} km/h"
+        )
+
+    else:
+
+        st.warning(
+            "Turbine never reaches positive energy balance"
+        )
