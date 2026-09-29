@@ -139,7 +139,7 @@ def calculate_energy(
         turbine_drag_power = 0
 
     braking_power = (
-        vehicle_mass *
+        mass *
         deceleration *
         V
         *
