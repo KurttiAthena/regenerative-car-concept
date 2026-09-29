@@ -84,6 +84,8 @@ variable_cycle = st.sidebar.checkbox(
     "Enable variable driving cycle"
 )
 
+grade = 0
+
 if variable_cycle:
 
 
