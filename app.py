@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from car_physics_model import calculate_energy, automatic_efficiency
+from car_physics_model import calculate_energy, get_efficiency
 
 
 
@@ -47,8 +47,29 @@ diameter = st.sidebar.slider(
 )
 
 
+eff_mode = st.sidebar.radio(
+    "Efficiency model",
+    [
+        "Realistic",
+        "Idealised slider"
+    ]
+)
 
-eff = automatic_efficiency()
+
+if eff_mode=="Idealised slider":
+
+    efficiency = st.sidebar.slider(
+        "Energy transfer efficiency (%)",
+        0,
+        100,
+        40
+    )
+
+else:
+
+    efficiency = 32
+
+eff = get_efficiency()
 
 
 
