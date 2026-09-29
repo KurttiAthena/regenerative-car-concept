@@ -35,11 +35,12 @@ def calculate_gravity_power(mass, speed_kmh, grade):
 
     return -gravity_power
 
-def find_activation_speed(
+def find_energy_positive_speed(
         mass,
         LD_ratio,
         turbine_diameter,
-        efficiency
+        efficiency, 
+        grade
 ):
 
     for speed in range(1,251):
@@ -50,7 +51,8 @@ def find_activation_speed(
             LD_ratio,
             turbine_diameter,
             efficiency,
-            True
+            True,
+            grade
         )
 
 
