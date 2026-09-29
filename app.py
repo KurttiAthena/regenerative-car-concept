@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from car_physics_model import calculate_energy, automatic_efficiency
 
@@ -70,10 +71,7 @@ tab1, tab2 = st.tabs(
 
 with tab1:
 
-
-    st.header(
-        "Turbine exposed at all speeds"
-    )
+    st.header("Version 1 - Turbine always open")
 
 
     speed = st.slider(
@@ -90,20 +88,95 @@ with tab1:
         speed,
         LD,
         diameter,
-        eff
+        eff,
+        True
     )
 
 
-    st.metric(
+    col1,col2,col3 = st.columns(3)
+
+
+    col1.metric(
         "Recovered power",
         f"{result['recovered_power']:.0f} W"
     )
 
 
-    st.metric(
-        "Net balance",
+    col2.metric(
+        "Turbine penalty",
+        f"{result['turbine_drag_power']:.0f} W"
+    )
+
+
+    col3.metric(
+        "Net effect",
         f"{result['net_power']:.0f} W"
     )
+
+
+    st.divider()
+
+
+    speeds = np.linspace(
+        1,
+        250,
+        100
+    )
+
+
+    recovery=[]
+
+    net=[]
+
+
+    for s in speeds:
+
+        r = calculate_energy(
+            mass,
+            s,
+            LD,
+            diameter,
+            eff,
+            True
+        )
+
+        recovery.append(
+            r["recovered_power"]
+        )
+
+        net.append(
+            r["net_power"]
+        )
+
+
+    fig,ax=plt.subplots()
+
+    ax.plot(
+        speeds,
+        recovery,
+        label="Recovered"
+    )
+
+    ax.plot(
+        speeds,
+        net,
+        label="Net"
+    )
+
+    ax.axhline(0)
+
+    ax.set_xlabel(
+        "Speed km/h"
+    )
+
+    ax.set_ylabel(
+        "Power W"
+    )
+
+    ax.legend()
+
+
+    st.pyplot(fig)
 
 
 
@@ -115,7 +188,7 @@ with tab2:
 
 
     st.header(
-        "Turbine opens only after threshold speed"
+        "Version 2 - Smart gate turbine"
     )
 
 
@@ -128,88 +201,92 @@ with tab2:
 
 
     max_speed = st.slider(
-        "Maximum vehicle speed",
+        "Maximum speed",
         opening_speed,
         250,
         150
     )
 
 
-    speeds = np.linspace(
+    speeds=np.linspace(
         opening_speed,
         max_speed,
         100
     )
 
 
-    recovered = []
-    net = []
+    data=[]
 
 
     for s in speeds:
 
 
-        result = calculate_energy(
+        r=calculate_energy(
             mass,
             s,
             LD,
             diameter,
-            eff
+            eff,
+            True
         )
 
 
-        recovered.append(
-            result["recovered_power"]
+        data.append(
+            [
+                s,
+                r["recovered_power"],
+                r["net_power"],
+                r["recovery_percentage"]
+            ]
         )
 
 
-        net.append(
-            result["net_power"]
-        )
 
-
-
-    fig, ax = plt.subplots()
-
-
-    ax.plot(
-        speeds,
-        recovered,
-        label="Recovered power"
+    df=pd.DataFrame(
+        data,
+        columns=[
+            "Speed",
+            "Recovered W",
+            "Net W",
+            "Recovery %"
+        ]
     )
 
 
-    ax.plot(
-        speeds,
-        net,
-        label="Net balance"
+
+    st.subheader(
+        "Energy recovery after gate opening"
     )
 
 
-    ax.axhline(
-        0
+    st.line_chart(
+        df.set_index("Speed")
+        [
+        [
+        "Recovered W",
+        "Net W"
+        ]
+        ]
     )
 
 
-    ax.set_xlabel(
-        "Speed (km/h)"
-    )
-
-    ax.set_ylabel(
-        "Power (W)"
+    st.subheader(
+        "Recovery percentage"
     )
 
 
-    ax.legend()
-
-
-    st.pyplot(fig)
-
-
-
-    st.write(
-        """
-        The turbine remains closed below the gate speed.
-        Above this speed, energy recovery increases approximately with V³.
-        """
+    st.line_chart(
+        df.set_index("Speed")
+        [
+        "Recovery %"
+        ]
     )
+
+
+
+    st.subheader(
+        "Numerical values"
+    )
+
+
+    st.dataframe(df)
