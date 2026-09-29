@@ -7,7 +7,8 @@ from car_physics_model import (
     calculate_energy,
     get_efficiency,
     find_activation_speed, 
-    find_positive_cases
+    find_positive_cases,
+    should_open_gate
 )
 
 
@@ -296,7 +297,21 @@ with tab2:
     for s in speeds:
 
 
-        turbine_active = s >= opening_speed
+        test_result = calculate_energy(
+            mass,
+            s,
+            LD,
+            diameter,
+            eff,
+            True,
+            grade
+        )
+
+
+        turbine_active = should_open_gate(
+            test_result,
+            grade < 0
+        )
 
 
         r=calculate_energy(
