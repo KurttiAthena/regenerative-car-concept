@@ -164,6 +164,7 @@ def calculate_energy(
     else:
 
         recovered_power = 0
+
         turbine_drag_power = 0
 
     turbine_net_effect = (
@@ -221,3 +222,13 @@ def calculate_energy(
         "turbine_net_effect": turbine_net_effect
 
     }
+
+def should_open_gate(result, downhill=False):
+
+    if downhill:
+        return True
+
+    if result["turbine_net_effect"] > 0:
+        return True
+
+    return False
