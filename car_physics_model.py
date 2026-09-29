@@ -35,6 +35,34 @@ def calculate_gravity_power(mass, speed_kmh, grade):
 
     return -gravity_power
 
+def find_positive_cases(
+        mass,
+        LD_ratio,
+        turbine_diameter,
+        efficiency,
+        speed_min,
+        speed_max
+):
+
+    positive_speeds = []
+
+    for speed in range(speed_min, speed_max + 1):
+
+        result = calculate_energy(
+            mass,
+            speed,
+            LD_ratio,
+            turbine_diameter,
+            efficiency,
+            True
+        )
+
+        if result["net_power"] > 0:
+            positive_speeds.append(speed)
+
+
+    return positive_speeds
+
 def find_energy_positive_speed(
         mass,
         LD_ratio,
