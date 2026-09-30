@@ -66,15 +66,26 @@ def simulate_cycle(
         if end_speed < start_speed:
 
 
-            recovered = calculate_turbine_braking(
+            result = calculate_energy(
+                mass,
                 start_speed,
-                time,
+                LD,
                 turbine_diameter,
-                efficiency
+                efficiency,
+                True
             )
 
 
-            total_energy += recovered
+            if result["turbine_net_effect"] > 0:
+
+                recovered = calculate_turbine_braking(
+                    start_speed,
+                    time,
+                    turbine_diameter,
+                    efficiency
+                )
+
+                total_energy += recovered
 
 
         else:
