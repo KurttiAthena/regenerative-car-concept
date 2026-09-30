@@ -140,7 +140,7 @@ def simulate_cycle(
     for start_speed,end_speed,distance,time,condition in cycle:
 
 
-        if end_speed < start_speed:
+        if condition == "braking":
 
             closed_result = calculate_energy(
                 mass,
@@ -174,20 +174,21 @@ def simulate_cycle(
                     open_result
                 )
 
-        if turbine_open:
 
-            recovered = integrate_turbine_energy(
-                start_speed,
-                end_speed,
-                time,
-                turbine_diameter,
-                efficiency
-            )
+            if turbine_open:
 
-            total_energy += recovered
+                recovered = integrate_turbine_energy(
+                    start_speed,
+                    end_speed,
+                    time,
+                    turbine_diameter,
+                    efficiency
+                )
+
+                total_energy += recovered
+
 
         else:
-
 
             result = calculate_energy(
                 mass,
