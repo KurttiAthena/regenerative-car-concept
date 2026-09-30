@@ -124,12 +124,9 @@ if variable_cycle:
         20,
         0
     )
-
-    braking = st.sidebar.slider(
-        "Braking intensity (%)",
-        0,
-        100,
-        0
+    
+    braking_mode = st.sidebar.checkbox(
+        "Analyse braking instead of acceleration"
     )
 
 
@@ -273,7 +270,8 @@ with tab1:
             diameter,
             eff,
             gate_mode, 
-            grade
+            grade, 
+            braking_mode
         )
 
 
@@ -482,7 +480,8 @@ with tab2:
             diameter,
             eff,
             gate_mode, 
-            grade
+            grade, 
+            braking_mode
         )
 
 
