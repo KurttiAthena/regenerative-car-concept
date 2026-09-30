@@ -272,7 +272,8 @@ with tab1:
             LD,
             diameter,
             eff,
-            gate_mode
+            gate_mode, 
+            grade
         )
 
 
@@ -480,7 +481,8 @@ with tab2:
             LD,
             diameter,
             eff,
-            gate_mode
+            gate_mode, 
+            grade
         )
 
 
