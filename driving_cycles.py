@@ -11,9 +11,7 @@ CITY_CYCLE = [
 
     (0,40,100,8,"acceleration"),
 
-    (40,50,300,20,"cruise"),
-
-    (50,20,80,5,"braking")
+    (40,50,300,20,"cruise")
 
 ]
 
@@ -22,20 +20,16 @@ HIGHWAY_CYCLE = [
 
     (50,100,1000,20,"acceleration"),
 
-    (100,120,2000,40,"cruise"),
-
-    (120,80,500,10,"braking")
+    (100,120,2000,40,"cruise")
 
 ]
 
 
 MOTORWAY_CYCLE = [
 
-    (100,130,1500,15,"acceleration"),
+    (100,160,1500,15,"acceleration"),
 
     (130,130,5000,120,"cruise"),
-
-    (130,90,800,15,"braking")
 
 ]
 
@@ -155,7 +149,7 @@ def simulate_cycle(
                 )
             )
 
-            electric_energy = integrate_turbine_energy((
+            electric_energy = integrate_turbine_energy(
                 start_speed,
                 end_speed,
                 time,
@@ -200,7 +194,7 @@ def simulate_cycle(
             )
 
 
-            electric_energy = integrate_turbine_energy((
+            electric_energy = integrate_turbine_energy(
                 start_speed,
                 end_speed,
                 time,
@@ -274,7 +268,7 @@ def simulate_cycle(
 
             if turbine_open:
 
-                electric_energy = integrate_turbine_energy((
+                electric_energy = integrate_turbine_energy(
                     start_speed,
                     end_speed,
                     time,
