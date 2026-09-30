@@ -29,7 +29,7 @@ MOTORWAY_CYCLE = [
 
     (100,160,1500,15,"acceleration"),
 
-    (130,130,5000,120,"cruise"),
+    (130,140,5000,120,"cruise"),
 
 ]
 
@@ -258,18 +258,6 @@ def simulate_cycle(
 
                 recovered_energy = 0
 
-            turbine_drag_energy = calculate_turbine_drag_energy(
-                start_speed,
-                end_speed,
-                time,
-                turbine_diameter
-            )
-
-
-            recovered_energy = (
-                electric_energy -
-                turbine_drag_energy
-            )
 
             if is_braking:
 
@@ -345,19 +333,6 @@ def simulate_cycle(
             else:
 
                 recovered_energy = 0
-
-            turbine_drag_energy = calculate_turbine_drag_energy(
-                start_speed,
-                end_speed,
-                time,
-                turbine_diameter
-            )
-
-
-            recovered_energy = (
-                electric_energy -
-                turbine_drag_energy
-            )
 
             if is_braking:
 
