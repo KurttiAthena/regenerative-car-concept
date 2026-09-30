@@ -51,6 +51,48 @@ def calculate_kinetic_energy_change(
         (vf**2 - vi**2)
     )
 
+def calculate_drag_energy(
+        mass,
+        LD_ratio,
+        speed,
+        distance
+):
+
+    V = speed / 3.6
+
+
+    frontal_area = 0.0005 * mass
+
+    Cd = 1 / LD_ratio
+
+
+    drag_force = (
+        0.5 *
+        AIR_DENSITY *
+        Cd *
+        frontal_area *
+        V**2
+    )
+
+
+    return drag_force * distance
+
+def calculate_gravity_energy(
+        mass,
+        grade,
+        distance
+):
+
+    angle = math.atan(grade/100)
+
+
+    return (
+        mass *
+        9.81 *
+        math.sin(angle) *
+        distance
+    )
+
 def find_recovery_cases(
         mass,
         LD_ratio,
