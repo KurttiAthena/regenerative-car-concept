@@ -3,7 +3,8 @@ from car_physics_model import (
     should_open_gate,
     calculate_kinetic_energy_change,
     calculate_drag_energy,
-    calculate_gravity_energy
+    calculate_gravity_energy,
+    calculate_turbine_drag_energy
 )
 
 CITY_CYCLE = [
@@ -115,7 +116,8 @@ def simulate_cycle(
         LD,
         turbine_diameter,
         efficiency,
-        gate_mode
+        gate_mode,
+        grade
 ):
 
     total_recovered_energy = 0
@@ -145,15 +147,33 @@ def simulate_cycle(
                     (start_speed+end_speed)/2,
                     distance
                 )
+                +
+                calculate_gravity_energy(
+                    mass,
+                    grade,
+                    distance
+                )
             )
 
-
-            recovered_energy = integrate_turbine_energy(
+            electric_energy = integrate_turbine_energy((
                 start_speed,
                 end_speed,
                 time,
                 turbine_diameter,
                 efficiency
+            )
+
+            turbine_drag_energy = calculate_turbine_drag_energy(
+                start_speed,
+                end_speed,
+                time,
+                turbine_diameter
+            )
+
+
+            recovered_energy = (
+                electric_energy -
+                turbine_drag_energy
             )
 
 
@@ -164,20 +184,41 @@ def simulate_cycle(
         elif condition == "cruise":
 
 
-            energy_available = calculate_drag_energy(
-                mass,
-                LD,
-                end_speed,
-                distance
+            energy_available = (
+                calculate_drag_energy(
+                    mass,
+                    LD,
+                    end_speed,
+                    distance
+                )
+                +
+                calculate_gravity_energy(
+                    mass,
+                    grade,
+                    distance
+                )
             )
 
 
-            recovered_energy = integrate_turbine_energy(
+            electric_energy = integrate_turbine_energy((
                 start_speed,
                 end_speed,
                 time,
                 turbine_diameter,
                 efficiency
+            )
+
+            turbine_drag_energy = calculate_turbine_drag_energy(
+                start_speed,
+                end_speed,
+                time,
+                turbine_diameter
+            )
+
+
+            recovered_energy = (
+                electric_energy -
+                turbine_drag_energy
             )
 
 
@@ -233,12 +274,25 @@ def simulate_cycle(
 
             if turbine_open:
 
-                recovered_energy = integrate_turbine_energy(
+                electric_energy = integrate_turbine_energy((
                     start_speed,
                     end_speed,
                     time,
                     turbine_diameter,
                     efficiency
+                )
+
+                turbine_drag_energy = calculate_turbine_drag_energy(
+                    start_speed,
+                    end_speed,
+                    time,
+                    turbine_diameter
+                )
+
+
+                recovered_energy = (
+                    electric_energy -
+                    turbine_drag_energy
                 )
 
             else:
