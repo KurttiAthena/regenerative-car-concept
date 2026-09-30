@@ -36,20 +36,6 @@ MOTORWAY_CYCLE = [
 ]
 
 
-def get_speed_range(name):
-
-    if name == "City":
-        return 20, 50
-
-    elif name == "Highway":
-        return 50, 100
-
-    elif name == "Motorway":
-        return 100, 150
-
-    else:
-        return 0, 0
-
 def calculate_turbine_braking(
         speed,
         duration,
