@@ -1,6 +1,9 @@
 from car_physics_model import (
     calculate_energy,
-    should_open_gate
+    should_open_gate,
+    calculate_kinetic_energy_change,
+    calculate_drag_energy,
+    calculate_gravity_energy
 )
 
 CITY_CYCLE = [
@@ -90,6 +93,21 @@ def integrate_turbine_energy(
 
     return total_energy
 
+def calculate_event_recovery_ratio(
+        recovered_energy,
+        energy_available
+):
+
+    if energy_available <= 0:
+
+        return 0
+
+
+    return (
+        recovered_energy /
+        energy_available *
+        100
+    )
 
 def simulate_cycle(
         cycle,
@@ -100,76 +118,154 @@ def simulate_cycle(
         gate_mode
 ):
 
-    total_energy = 0
+    total_recovered_energy = 0
+    total_available_energy = 0
 
 
     for start_speed,end_speed,distance,time,condition in cycle:
 
 
-        if condition == "braking":
+    # ---------------------------------
+    # ACCELERATION
+    # ---------------------------------
 
-            closed_result = calculate_energy(
+    if condition == "acceleration":
+
+
+        energy_available = (
+            calculate_kinetic_energy_change(
                 mass,
                 start_speed,
+                end_speed
+            )
+            +
+            calculate_drag_energy(
+                mass,
                 LD,
-                turbine_diameter,
-                efficiency,
-                False
+                (start_speed+end_speed)/2,
+                distance
+            )
+        )
+
+
+        recovered_energy = integrate_turbine_energy(
+            start_speed,
+            end_speed,
+            time,
+            turbine_diameter,
+            efficiency
+        )
+
+
+    # ---------------------------------
+    # CRUISE
+    # ---------------------------------
+
+    elif condition == "cruise":
+
+
+        energy_available = calculate_drag_energy(
+            mass,
+            LD,
+            end_speed,
+            distance
+        )
+
+
+        recovered_energy = integrate_turbine_energy(
+            start_speed,
+            end_speed,
+            time,
+            turbine_diameter,
+            efficiency
+        )
+
+
+    # ---------------------------------
+    # BRAKING
+    # ---------------------------------
+
+    elif condition == "braking":
+
+
+        energy_available = (
+            -calculate_kinetic_energy_change(
+                mass,
+                start_speed,
+                end_speed
+            )
+        )
+
+
+        closed_result = calculate_energy(
+            mass,
+            start_speed,
+            LD,
+            turbine_diameter,
+            efficiency,
+            False
+        )
+
+
+        open_result = calculate_energy(
+            mass,
+            start_speed,
+            LD,
+            turbine_diameter,
+            efficiency,
+            True
+        )
+
+
+        if gate_mode == "always_open":
+
+            turbine_open = True
+
+
+        elif gate_mode == "smart":
+
+            turbine_open = should_open_gate(
+                closed_result,
+                open_result
             )
 
 
-            open_result = calculate_energy(
-                mass,
+        if turbine_open:
+
+            recovered_energy = integrate_turbine_energy(
                 start_speed,
-                LD,
+                end_speed,
+                time,
                 turbine_diameter,
-                efficiency,
-                True
+                efficiency
             )
-
-
-            if gate_mode == "always_open":
-
-                turbine_open = True
-
-
-            elif gate_mode == "smart":
-
-                turbine_open = should_open_gate(
-                    closed_result,
-                    open_result
-                )
-
-
-            if turbine_open:
-
-                recovered = integrate_turbine_energy(
-                    start_speed,
-                    end_speed,
-                    time,
-                    turbine_diameter,
-                    efficiency
-                )
-
-                total_energy += recovered
-
 
         else:
 
-            result = calculate_energy(
-                mass,
-                end_speed,
-                LD,
-                turbine_diameter,
-                efficiency,
-                True
-            )
+            recovered_energy = 0
 
+        total_recovered_energy += recovered_energy
 
-            total_energy += (
-                result["net_power"] *
-                time
-            )
+        total_available_energy += energy_available
 
+    if total_available_energy > 0:
 
-    return total_energy
+        recovery_percentage = (
+            total_recovered_energy /
+            total_available_energy *
+            100
+        )
+
+    else:
+
+        recovery_percentage = 0
+
+    return {
+
+        "recovered_energy": total_recovered_energy,
+
+        "available_energy": total_available_energy,
+
+        "recovery_percentage": recovery_percentage
+
+    }
