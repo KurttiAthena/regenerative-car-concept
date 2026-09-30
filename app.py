@@ -132,13 +132,6 @@ if variable_cycle:
         0
     )
 
-    cycle_energy = simulate_cycle(
-        selected_cycle,
-        mass,
-        LD,
-        diameter,
-        eff
-    )
 
 
 # -------------------
