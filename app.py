@@ -7,7 +7,7 @@ from car_physics_model import (
     calculate_energy,
     get_efficiency,
     find_activation_speed, 
-    find_positive_cases,
+    find_recovery_cases,
     should_open_gate
 )
 
@@ -444,7 +444,7 @@ with tab2:
             "Turbine never reaches positive energy balance"
         )
 
-    positive = find_positive_cases(
+    positive = find_recovery_cases(
         mass,
         LD,
         diameter,
