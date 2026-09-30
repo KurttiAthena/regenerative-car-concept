@@ -12,6 +12,14 @@ from car_physics_model import (
 )
 
 
+from driving_cycles import (
+    CITY_CYCLE,
+    HIGHWAY_CYCLE,
+    MOTORWAY_CYCLE,
+    simulate_cycle
+)
+
+
 
 st.set_page_config(
     page_title="Regenerative Car Model",
@@ -89,8 +97,7 @@ grade = 0
 
 if variable_cycle:
 
-
-    cycle = st.sidebar.selectbox(
+    cycle_name = st.sidebar.selectbox(
         "Driving scenario",
         [
             "City",
@@ -99,17 +106,14 @@ if variable_cycle:
         ]
     )
 
-    if cycle == "City":
-        speed_min = 20
-        speed_max = 50
+    if cycle_name == "City":
+        selected_cycle = CITY_CYCLE
 
-    elif cycle == "Highway":
-        speed_min = 50
-        speed_max = 100
+    elif cycle_name == "Highway":
+        selected_cycle = HIGHWAY_CYCLE
 
-    elif cycle == "Motorway":
-        speed_min = 100
-        speed_max = 150
+    elif cycle_name == "Motorway":
+        selected_cycle = MOTORWAY_CYCLE
 
     grade = st.sidebar.slider(
         "Road gradient (%)",
@@ -123,6 +127,14 @@ if variable_cycle:
         0,
         100,
         0
+    )
+
+    energy = simulate_cycle(
+        selected_cycle,
+        mass,
+        LD,
+        diameter,
+        eff
     )
 
 
