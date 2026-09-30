@@ -133,9 +133,8 @@ def calculate_gravity_energy(
 
     angle = math.atan(grade/100)
 
-
     return (
-        mass *
+        -mass *
         9.81 *
         math.sin(angle) *
         distance
