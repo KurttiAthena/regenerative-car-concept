@@ -325,7 +325,18 @@ with tab2:
     for s in speeds:
 
 
-        test_result = calculate_energy(
+        closed_result = calculate_energy(
+            mass,
+            s,
+            LD,
+            diameter,
+            eff,
+            False,
+            grade
+        )
+
+
+        open_result = calculate_energy(
             mass,
             s,
             LD,
@@ -337,8 +348,8 @@ with tab2:
 
 
         turbine_active = should_open_gate(
-            test_result,
-            grade < 0
+            closed_result,
+            open_result
         )
 
 
