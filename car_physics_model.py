@@ -77,6 +77,54 @@ def calculate_drag_energy(
 
     return drag_force * distance
 
+def calculate_turbine_drag_energy(
+        initial_speed,
+        final_speed,
+        duration,
+        turbine_diameter,
+        steps=100
+):
+
+    total_energy = 0
+
+    dt = duration / steps
+
+
+    turbine_area = (
+        math.pi *
+        (turbine_diameter/2)**2
+    )
+
+
+    for i in range(steps):
+
+        speed = (
+            initial_speed +
+            (final_speed-initial_speed)
+            *
+            i/steps
+        )
+
+
+        V = speed / 3.6
+
+
+        drag_power = (
+            0.5 *
+            AIR_DENSITY *
+            turbine_area *
+            V**3
+        )
+
+
+        total_energy += (
+            drag_power *
+            dt
+        )
+
+
+    return total_energy
+
 def calculate_gravity_energy(
         mass,
         grade,
