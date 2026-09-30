@@ -69,6 +69,61 @@ def calculate_turbine_braking(
 
     return recovered_energy
 
+def integrate_turbine_energy(
+        initial_speed,
+        final_speed,
+        duration,
+        turbine_diameter,
+        efficiency,
+        steps=100
+):
+
+    total_energy = 0
+
+    dt = duration / steps
+
+
+    for i in range(steps):
+
+        speed = (
+            initial_speed +
+            (final_speed-initial_speed)
+            *
+            i/steps
+        )
+
+
+        V = speed / 3.6
+
+
+        turbine_area = (
+            3.14159 *
+            (turbine_diameter/2)**2
+        )
+
+
+        wind_power = (
+            0.5 *
+            1.225 *
+            turbine_area *
+            V**3
+        )
+
+
+        recovered_power = (
+            wind_power *
+            efficiency
+        )
+
+
+        total_energy += (
+            recovered_power *
+            dt
+        )
+
+
+    return total_energy
+
 
 def simulate_cycle(
         cycle,
@@ -87,7 +142,17 @@ def simulate_cycle(
 
         if end_speed < start_speed:
 
-            result = calculate_energy(
+            closed_result = calculate_energy(
+                mass,
+                start_speed,
+                LD,
+                turbine_diameter,
+                efficiency,
+                False
+            )
+
+
+            open_result = calculate_energy(
                 mass,
                 start_speed,
                 LD,
@@ -105,21 +170,21 @@ def simulate_cycle(
             elif gate_mode == "smart":
 
                 turbine_open = should_open_gate(
-                    result,
-                    False
+                    closed_result,
+                    open_result
                 )
 
+        if turbine_open:
 
-            if turbine_open:
+            recovered = integrate_turbine_energy(
+                start_speed,
+                end_speed,
+                time,
+                turbine_diameter,
+                efficiency
+            )
 
-                recovered = calculate_turbine_braking(
-                    start_speed,
-                    time,
-                    turbine_diameter,
-                    efficiency
-                )
-
-                total_energy += recovered
+            total_energy += recovered
 
         else:
 
