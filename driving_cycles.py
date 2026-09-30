@@ -45,3 +45,55 @@ def calculate_turbine_braking(
 
     return recovered_energy
 
+
+from car_physics_model import calculate_energy
+
+
+def simulate_cycle(
+        cycle,
+        mass,
+        LD,
+        turbine_diameter,
+        efficiency
+):
+
+    total_energy = 0
+
+
+    for start_speed,end_speed,time in cycle:
+
+
+        if end_speed < start_speed:
+
+
+            recovered = calculate_turbine_braking(
+                start_speed,
+                time,
+                turbine_diameter,
+                efficiency
+            )
+
+
+            total_energy += recovered
+
+
+        else:
+
+
+            result = calculate_energy(
+                mass,
+                end_speed,
+                LD,
+                turbine_diameter,
+                efficiency,
+                True
+            )
+
+
+            total_energy += (
+                result["net_power"] *
+                time
+            )
+
+
+    return total_energy
