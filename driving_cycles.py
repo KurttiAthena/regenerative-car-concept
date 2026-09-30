@@ -88,6 +88,52 @@ def integrate_turbine_energy(
 
     return total_energy
 
+def turbine_decision(
+        mass,
+        LD,
+        turbine_diameter,
+        efficiency,
+        speed,
+        gate_mode,
+        grade
+):
+
+    if gate_mode == "always_open":
+        return True
+
+
+    elif gate_mode == "smart":
+
+        closed_result = calculate_energy(
+            mass,
+            speed,
+            LD,
+            turbine_diameter,
+            efficiency,
+            False,
+            grade
+        )
+
+
+        open_result = calculate_energy(
+            mass,
+            speed,
+            LD,
+            turbine_diameter,
+            efficiency,
+            True,
+            grade
+        )
+
+
+        return should_open_gate(
+            closed_result,
+            open_result
+        )
+
+
+    return False
+
 def calculate_event_recovery_ratio(
         recovered_energy,
         energy_available
@@ -162,13 +208,50 @@ def simulate_cycle(
                 )
             )
 
-            electric_energy = integrate_turbine_energy(
-                start_speed,
-                end_speed,
-                time,
+            average_speed = (
+                start_speed +
+                end_speed
+            ) / 2
+
+
+            turbine_open = turbine_decision(
+                mass,
+                LD,
                 turbine_diameter,
-                efficiency
+                efficiency,
+                average_speed,
+                gate_mode,
+                grade
             )
+
+
+            if turbine_open:
+
+                electric_energy = integrate_turbine_energy(
+                    start_speed,
+                    end_speed,
+                    time,
+                    turbine_diameter,
+                    efficiency
+                )
+
+
+                turbine_drag_energy = calculate_turbine_drag_energy(
+                    start_speed,
+                    end_speed,
+                    time,
+                    turbine_diameter
+                )
+
+
+                recovered_energy = (
+                    electric_energy -
+                    turbine_drag_energy
+                )
+
+            else:
+
+                recovered_energy = 0
 
             turbine_drag_energy = calculate_turbine_drag_energy(
                 start_speed,
@@ -219,13 +302,44 @@ def simulate_cycle(
             )
 
 
-            electric_energy = integrate_turbine_energy(
-                start_speed,
-                end_speed,
-                time,
+            turbine_open = turbine_decision(
+                mass,
+                LD,
                 turbine_diameter,
-                efficiency
+                efficiency,
+                end_speed,
+                gate_mode,
+                grade
             )
+
+
+            if turbine_open:
+
+                electric_energy = integrate_turbine_energy(
+                    start_speed,
+                    end_speed,
+                    time,
+                    turbine_diameter,
+                    efficiency
+                )
+
+
+                turbine_drag_energy = calculate_turbine_drag_energy(
+                    start_speed,
+                    end_speed,
+                    time,
+                    turbine_diameter
+                )
+
+
+                recovered_energy = (
+                    electric_energy -
+                    turbine_drag_energy
+                )
+
+            else:
+
+                recovered_energy = 0
 
             turbine_drag_energy = calculate_turbine_drag_energy(
                 start_speed,
@@ -257,7 +371,7 @@ def simulate_cycle(
         # BRAKING
         # ---------------------------------
 
-        elif condition == "acceleration" and is_braking::
+        elif condition == "acceleration" and is_braking:
 
 
             energy_available = (
