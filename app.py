@@ -95,6 +95,9 @@ variable_cycle = st.sidebar.checkbox(
 
 grade = 0
 
+speed_min = 0
+speed_max = 250
+
 if variable_cycle:
 
     cycle_name = st.sidebar.selectbox(
