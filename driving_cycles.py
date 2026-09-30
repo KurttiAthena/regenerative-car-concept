@@ -1,3 +1,41 @@
+from car_physics_model import (
+    calculate_energy,
+    should_open_gate
+)
+
+CITY_CYCLE = [
+
+    (0,40,100,8,"acceleration"),
+
+    (40,50,300,20,"cruise"),
+
+    (50,20,80,5,"braking")
+
+]
+
+
+HIGHWAY_CYCLE = [
+
+    (50,100,1000,20,"acceleration"),
+
+    (100,120,2000,40,"cruise"),
+
+    (120,80,500,10,"braking")
+
+]
+
+
+MOTORWAY_CYCLE = [
+
+    (100,130,1500,15,"acceleration"),
+
+    (130,130,5000,120,"cruise"),
+
+    (130,90,800,15,"braking")
+
+]
+
+
 def get_speed_range(name):
 
     if name == "City":
@@ -54,7 +92,8 @@ def simulate_cycle(
         mass,
         LD,
         turbine_diameter,
-        efficiency
+        efficiency,
+        gate_mode
 ):
 
     total_energy = 0
@@ -65,18 +104,23 @@ def simulate_cycle(
 
         if end_speed < start_speed:
 
-
-            result = calculate_energy(
-                mass,
-                start_speed,
-                LD,
-                turbine_diameter,
-                efficiency,
-                True
-            )
+            turbine_open = False
 
 
-            if result["turbine_net_effect"] > 0:
+            if gate_mode == "always_open":
+
+                turbine_open = True
+
+
+            elif gate_mode == "smart":
+
+                turbine_open = should_open_gate(
+                    result,
+                    False
+                )
+
+
+            if turbine_open:
 
                 recovered = calculate_turbine_braking(
                     start_speed,
@@ -86,7 +130,6 @@ def simulate_cycle(
                 )
 
                 total_energy += recovered
-
 
         else:
 
