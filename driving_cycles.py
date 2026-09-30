@@ -105,13 +105,14 @@ def calculate_event_recovery_ratio(
     )
 
 def simulate_cycle(
-        cycle,
-        mass,
-        LD,
-        turbine_diameter,
-        efficiency,
-        gate_mode,
-        grade
+    cycle,
+    mass,
+    LD,
+    turbine_diameter,
+    efficiency,
+    gate_mode,
+    grade, 
+    braking_mode
 ):
 
     total_recovered_energy = 0
@@ -119,6 +120,10 @@ def simulate_cycle(
 
 
     for start_speed,end_speed,distance,time,condition in cycle:
+
+        if braking_mode:
+
+            start_speed, end_speed = end_speed, start_speed
 
 
         # ---------------------------------
