@@ -173,7 +173,12 @@ def simulate_cycle(
 
     for start_speed,end_speed,distance,time,condition in cycle:
 
+        recovered_energy = 0
+
+        energy_available = 0
+        
         is_braking = False
+        
         if braking_mode:
 
             start_speed, end_speed = end_speed, start_speed
@@ -490,7 +495,17 @@ def simulate_cycle(
             total_available_energy,
 
         "recovery_percentage":
-            recovery_percentage,
+
+            (
+            braking_recovered /
+            braking_available * 100
+            if braking_mode and braking_available > 0
+            else
+            acceleration_recovered /
+            acceleration_available * 100
+            if acceleration_available > 0
+            else 0
+            ),
 
         "acceleration":
         {
