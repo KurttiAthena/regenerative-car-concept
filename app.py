@@ -266,7 +266,7 @@ with tab1:
 
     if variable_cycle:
 
-        cycle_energy = simulate_cycle(
+        cycle_results = simulate_cycle(
             selected_cycle,
             mass,
             LD,
@@ -275,9 +275,16 @@ with tab1:
             gate_mode
         )
 
+
         st.metric(
             "Energy recovered in cycle",
-            f"{cycle_energy/1000:.2f} kJ"
+            f"{cycle_results['recovered_energy']/1000:.2f} kJ"
+        )
+
+
+        st.metric(
+            "Recovery percentage",
+            f"{cycle_results['recovery_percentage']:.2f}%"
         )
 
 
@@ -467,7 +474,7 @@ with tab2:
 
     if variable_cycle:
 
-        cycle_energy = simulate_cycle(
+        cycle_results = simulate_cycle(
             selected_cycle,
             mass,
             LD,
@@ -476,7 +483,14 @@ with tab2:
             gate_mode
         )
 
+
         st.metric(
             "Energy recovered in cycle",
-            f"{cycle_energy/1000:.2f} kJ"
+            f"{cycle_results['recovered_energy']/1000:.2f} kJ"
+        )
+
+
+        st.metric(
+            "Recovery percentage",
+            f"{cycle_results['recovery_percentage']:.2f}%"
         )
