@@ -35,6 +35,22 @@ def calculate_gravity_power(mass, speed_kmh, grade):
 
     return -gravity_power
 
+def calculate_kinetic_energy_change(
+        mass,
+        initial_speed,
+        final_speed
+):
+
+    vi = initial_speed / 3.6
+    vf = final_speed / 3.6
+
+
+    return (
+        0.5 *
+        mass *
+        (vf**2 - vi**2)
+    )
+
 def find_recovery_cases(
         mass,
         LD_ratio,
@@ -223,12 +239,13 @@ def calculate_energy(
 
     }
 
-def should_open_gate(result, downhill=False):
+def should_open_gate(
+        closed_result,
+        open_result
+):
 
-    if downhill:
-        return True
+    if open_result["total_power_effect"] < closed_result["total_power_effect"]:
 
-    if result["turbine_net_effect"] > 0:
         return True
 
     return False
