@@ -155,6 +155,8 @@ with tab1:
 
     st.header("Version 1 - Turbine always open")
 
+    gate_mode = "always_open"
+
 
     speed = st.slider(
         "Vehicle speed",
@@ -262,10 +264,21 @@ with tab1:
 
     st.pyplot(fig)
 
-    st.metric(
-        "Energy recovered in cycle",
-        f"{cycle_energy/1000:.2f} kJ"
-    )
+    if variable_cycle:
+
+        cycle_energy = simulate_cycle(
+            selected_cycle,
+            mass,
+            LD,
+            diameter,
+            eff,
+            gate_mode
+        )
+
+        st.metric(
+            "Energy recovered in cycle",
+            f"{cycle_energy/1000:.2f} kJ"
+        )
 
 
 
@@ -279,6 +292,8 @@ with tab2:
     st.header(
         "Version 2 - Smart gate turbine"
     )
+
+    gate_mode = "smart"
 
 
     opening_speed = st.slider(
@@ -439,7 +454,18 @@ with tab2:
             "No positive energy balance in this speed range"
         )
 
-    st.metric(
-        "Energy recovered in cycle",
-        f"{cycle_energy/1000:.2f} kJ"
-    )
+    if variable_cycle:
+
+        cycle_energy = simulate_cycle(
+            selected_cycle,
+            mass,
+            LD,
+            diameter,
+            eff,
+            gate_mode
+        )
+
+        st.metric(
+            "Energy recovered in cycle",
+            f"{cycle_energy/1000:.2f} kJ"
+        )
