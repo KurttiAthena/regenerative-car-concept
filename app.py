@@ -275,9 +275,13 @@ with tab1:
         )
 
 
+        st.write(
+            f"Analysis mode: {cycle_results['mode']}"
+        )
+        
         st.metric(
             "Energy recovered in cycle",
-            f"{cycle_results['recovered_energy']/1000:.2f} kJ"
+            f"{cycle_results['total_recovered_energy']/1000:.2f} kJ"
         )
 
 
@@ -485,9 +489,13 @@ with tab2:
         )
 
 
+        st.write(
+            f"Analysis mode: {cycle_results['mode']}"
+        )
+        
         st.metric(
             "Energy recovered in cycle",
-            f"{cycle_results['recovered_energy']/1000:.2f} kJ"
+            f"{cycle_results['total_recovered_energy']/1000:.2f} kJ"
         )
 
 
