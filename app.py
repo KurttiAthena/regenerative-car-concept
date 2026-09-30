@@ -132,7 +132,7 @@ if variable_cycle:
         0
     )
 
-    energy = simulate_cycle(
+    cycle_energy = simulate_cycle(
         selected_cycle,
         mass,
         LD,
@@ -268,6 +268,11 @@ with tab1:
 
 
     st.pyplot(fig)
+
+    st.metric(
+        "Energy recovered in cycle",
+        f"{cycle_energy/1000:.2f} kJ"
+    )
 
 
 
@@ -440,3 +445,8 @@ with tab2:
         st.warning(
             "No positive energy balance in this speed range"
         )
+
+    st.metric(
+        "Energy recovered in cycle",
+        f"{cycle_energy/1000:.2f} kJ"
+    )
