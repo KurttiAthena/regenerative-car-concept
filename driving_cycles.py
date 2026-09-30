@@ -118,19 +118,27 @@ def simulate_cycle(
     total_recovered_energy = 0
     total_available_energy = 0
 
+    acceleration_recovered = 0
+    acceleration_available = 0
+
+    braking_recovered = 0
+    braking_available = 0
+
 
     for start_speed,end_speed,distance,time,condition in cycle:
 
+        is_braking = False
         if braking_mode:
 
             start_speed, end_speed = end_speed, start_speed
+            is_braking = True
 
 
         # ---------------------------------
         # ACCELERATION
         # ---------------------------------
 
-        if condition == "acceleration":
+        if condition == "acceleration" and not is_braking:
 
 
             energy_available = (
@@ -174,6 +182,18 @@ def simulate_cycle(
                 electric_energy -
                 turbine_drag_energy
             )
+
+            if is_braking:
+
+                braking_recovered += recovered_energy
+
+                braking_available += energy_available
+
+            else:
+
+                acceleration_recovered += recovered_energy
+
+                acceleration_available += energy_available
 
 
         # ---------------------------------
@@ -220,12 +240,24 @@ def simulate_cycle(
                 turbine_drag_energy
             )
 
+            if is_braking:
+
+                braking_recovered += recovered_energy
+
+                braking_available += energy_available
+
+            else:
+
+                acceleration_recovered += recovered_energy
+
+                acceleration_available += energy_available
+
 
         # ---------------------------------
         # BRAKING
         # ---------------------------------
 
-        elif condition == "braking":
+        elif condition == "acceleration" and is_braking::
 
 
             energy_available = (
@@ -234,6 +266,12 @@ def simulate_cycle(
                     start_speed,
                     end_speed
                 )
+                +
+                calculate_gravity_energy(
+                    mass,
+                    grade,
+                    distance
+                 )
             )
 
 
@@ -298,6 +336,18 @@ def simulate_cycle(
 
                 recovered_energy = 0
 
+            if is_braking:
+
+                braking_recovered += recovered_energy
+
+                braking_available += energy_available
+
+            else:
+
+                acceleration_recovered += recovered_energy
+
+                acceleration_available += energy_available
+
         total_recovered_energy += recovered_energy
 
         total_available_energy += energy_available
@@ -316,10 +366,33 @@ def simulate_cycle(
 
     return {
 
-        "recovered_energy": total_recovered_energy,
+        "mode":
+            "Braking" if braking_mode else "Acceleration",
 
-        "available_energy": total_available_energy,
+        "total_recovered_energy":
+            total_recovered_energy,
 
-        "recovery_percentage": recovery_percentage
+        "total_available_energy":
+            total_available_energy,
 
+        "recovery_percentage":
+            recovery_percentage,
+
+        "acceleration":
+        {
+            "recovered":
+                acceleration_recovered,
+
+            "available":
+                acceleration_available
+        },
+
+        "braking":
+        {
+            "recovered":
+                braking_recovered,
+
+            "available":
+                braking_available
+        }
     }
