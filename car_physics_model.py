@@ -202,18 +202,7 @@ def calculate_energy(
     )
 
 
-
-    if vehicle_drag_power > 0:
-
-        recovery_percentage = (
-            recovered_power /
-            vehicle_drag_power
-            *
-            100
-        )
-
-    else:
-        recovery_percentage = 0
+    recovery_percentage = 0
 
 
 
