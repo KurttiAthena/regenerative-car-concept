@@ -124,6 +124,11 @@ if variable_cycle:
         20,
         0
     )
+
+    event_type = st.sidebar.selectbox(
+        "Driving condition",
+        ["Acceleration", "Cruise"]
+    ).lower()
     
     braking_mode = st.sidebar.checkbox(
         "Analyse braking instead of acceleration"
@@ -271,7 +276,8 @@ with tab1:
             eff,
             gate_mode, 
             grade, 
-            braking_mode
+            braking_mode, 
+            event_type
         )
 
 
@@ -485,7 +491,8 @@ with tab2:
             eff,
             gate_mode, 
             grade, 
-            braking_mode
+            braking_mode, 
+            event_type
         )
 
 
