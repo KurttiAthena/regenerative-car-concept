@@ -35,7 +35,7 @@ def calculate_gravity_power(mass, speed_kmh, grade):
 
     return -gravity_power
 
-def find_positive_cases(
+def find_recovery_cases(
         mass,
         LD_ratio,
         turbine_diameter,
@@ -59,7 +59,7 @@ def find_positive_cases(
             grade
         )
 
-        if result["net_power"] > 0:
+        if result["recovery_percentage"] > 0:
             positive_speeds.append(speed)
 
 
