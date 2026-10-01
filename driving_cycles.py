@@ -158,7 +158,8 @@ def simulate_cycle(
     efficiency,
     gate_mode,
     grade, 
-    braking_mode
+    braking_mode, 
+    event_type="acceleration"
 ):
 
     total_recovered_energy = 0
@@ -172,6 +173,9 @@ def simulate_cycle(
 
 
     for start_speed,end_speed,distance,time,condition in cycle:
+
+        if condition != event_type:
+            continue
 
         recovered_energy = 0
 
@@ -276,7 +280,7 @@ def simulate_cycle(
         # CRUISE
         # ---------------------------------
 
-        elif condition == "cruise":
+        elif condition == "cruise" and not is_braking:
 
 
             energy_available = (
@@ -351,7 +355,7 @@ def simulate_cycle(
         # BRAKING
         # ---------------------------------
 
-        elif condition == "acceleration" and is_braking:
+        elif is_braking:
 
 
             energy_available = (
@@ -369,38 +373,15 @@ def simulate_cycle(
             )
 
 
-            closed_result = calculate_energy(
+            turbine_open = turbine_decision(
                 mass,
-                start_speed,
                 LD,
                 turbine_diameter,
                 efficiency,
-                False
-            )
-
-
-            open_result = calculate_energy(
-                mass,
                 start_speed,
-                LD,
-                turbine_diameter,
-                efficiency,
-                True
+                gate_mode,
+                grade
             )
-
-            turbine_open = False
-
-            if gate_mode == "always_open":
-
-                turbine_open = True
-
-
-            elif gate_mode == "smart":
-
-                turbine_open = should_open_gate(
-                    closed_result,
-                    open_result
-                )
 
 
             if turbine_open:
@@ -460,8 +441,10 @@ def simulate_cycle(
 
     return {
 
-        "mode":
-            "Braking" if braking_mode else "Acceleration",
+        "mode": (
+            ("Braking / " if braking_mode else "Normal / ")
+            + event_type.capitalize()
+        ),
 
         "total_recovered_energy":
             total_recovered_energy,
