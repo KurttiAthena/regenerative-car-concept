@@ -2,328 +2,467 @@ import math
 
 
 AIR_DENSITY = 1.225
+GRAVITY = 9.81
 
+# Screening assumption used because the UI does not ask the user for vehicle
+# frontal area.  Do not derive frontal area from vehicle mass or turbine size:
+# neither quantity determines the vehicle's projected frontal area.
+REFERENCE_FRONTAL_AREA = 2.2  # m^2
 
 
 def get_efficiency(mode, user_value):
+    """Return overall wind-to-electric efficiency as a fraction."""
 
     if mode == "Realistic":
-
         turbine = 0.40
         generator = 0.90
         electronics = 0.90
-
         return turbine * generator * electronics
 
+    return user_value / 100.0
 
-    else:
-
-        return user_value / 100
 
 def calculate_gravity_power(mass, speed_kmh, grade):
+    """
+    Road-grade power at the wheels.
+
+    Positive = extra propulsion power required uphill.
+    Negative = gravity supplies power downhill.
+    """
 
     V = speed_kmh / 3.6
+    angle = math.atan(grade / 100.0)
 
-    angle = math.atan(grade / 100)
+    return mass * GRAVITY * V * math.sin(angle)
 
-    gravity_power = (
-        mass *
-        9.81 *
-        V *
-        math.sin(angle)
-    )
 
-    return -gravity_power
-
-def calculate_kinetic_energy_change(
-        mass,
-        initial_speed,
-        final_speed
-):
+def calculate_kinetic_energy_change(mass, initial_speed, final_speed):
+    """Positive when the vehicle accelerates, negative when it decelerates."""
 
     vi = initial_speed / 3.6
     vf = final_speed / 3.6
 
-
-    return (
-        0.5 *
-        mass *
-        (vf**2 - vi**2)
-    )
-
-def calculate_drag_energy(
-        mass,
-        LD_ratio,
-        speed,
-        distance
-):
-
-    V = speed / 3.6
+    return 0.5 * mass * (vf**2 - vi**2)
 
 
-    frontal_area = 0.0005 * mass
+def calculate_vehicle_drag_power(speed_kmh, LD_ratio):
+    """
+    Simplified vehicle aerodynamic power.
 
-    Cd = 1 / LD_ratio
+    IMPORTANT: Cd = 1 / L/D is only a screening proxy. A true vehicle L/D ratio
+    is not sufficient to determine Cd. This approximation is kept so the model
+    does not require a new user input.
+    """
 
+    V = speed_kmh / 3.6
+    Cd_proxy = 1.0 / LD_ratio
 
     drag_force = (
-        0.5 *
-        AIR_DENSITY *
-        Cd *
-        frontal_area *
-        V**2
+        0.5
+        * AIR_DENSITY
+        * Cd_proxy
+        * REFERENCE_FRONTAL_AREA
+        * V**2
     )
 
+    return drag_force * V
+
+
+def calculate_drag_energy(mass, LD_ratio, speed, distance):
+    """Compatibility helper for a constant-speed segment."""
+
+    del mass  # Vehicle mass does not determine aerodynamic frontal area.
+
+    V = speed / 3.6
+    Cd_proxy = 1.0 / LD_ratio
+
+    drag_force = (
+        0.5
+        * AIR_DENSITY
+        * Cd_proxy
+        * REFERENCE_FRONTAL_AREA
+        * V**2
+    )
 
     return drag_force * distance
 
+
 def calculate_turbine_drag_energy(
-        initial_speed,
-        final_speed,
-        duration,
-        turbine_diameter,
-        steps=100
+    initial_speed,
+    final_speed,
+    duration,
+    turbine_diameter,
+    steps=200,
 ):
+    """
+    Integrate the current simplified turbine aerodynamic-penalty proxy.
 
-    total_energy = 0
+    The model treats the free-stream kinetic power through the turbine swept
+    area as the aerodynamic penalty proxy. This is intentionally conservative
+    and is listed as a model limitation in the UI.
+    """
 
+    total_energy = 0.0
     dt = duration / steps
-
-
-    turbine_area = (
-        math.pi *
-        (turbine_diameter/2)**2
-    )
-
+    turbine_area = math.pi * (turbine_diameter / 2.0) ** 2
 
     for i in range(steps):
-
-        speed = (
-            initial_speed +
-            (final_speed-initial_speed)
-            *
-            i/steps
-        )
-
-
+        fraction = (i + 0.5) / steps
+        speed = initial_speed + (final_speed - initial_speed) * fraction
         V = speed / 3.6
 
-
-        drag_power = (
-            0.5 *
-            AIR_DENSITY *
-            turbine_area *
-            V**3
-        )
-
-
-        total_energy += (
-            drag_power *
-            dt
-        )
-
+        drag_power = 0.5 * AIR_DENSITY * turbine_area * V**3
+        total_energy += drag_power * dt
 
     return total_energy
 
-def calculate_gravity_energy(
-        mass,
-        grade,
-        distance
-):
 
-    angle = math.atan(grade/100)
+def calculate_gravity_energy(mass, grade, distance):
+    """Positive uphill, negative downhill."""
 
-    return (
-        -mass *
-        9.81 *
-        math.sin(angle) *
-        distance
-    )
-
-def find_recovery_cases(
-        mass,
-        LD_ratio,
-        turbine_diameter,
-        efficiency,
-        speed_min,
-        speed_max, 
-        grade=0
-):
-
-    positive_speeds = []
-
-    for speed in range(speed_min, speed_max + 1):
-
-        result = calculate_energy(
-            mass,
-            speed,
-            LD_ratio,
-            turbine_diameter,
-            efficiency,
-            True, 
-            grade
-        )
-
-        if result["recovery_percentage"] > 0:
-            positive_speeds.append(speed)
-
-
-    return positive_speeds
-
-def find_activation_speed(
-        mass,
-        LD_ratio,
-        turbine_diameter,
-        efficiency, 
-        grade
-):
-
-    for speed in range(1,251):
-
-        result = calculate_energy(
-            mass,
-            speed,
-            LD_ratio,
-            turbine_diameter,
-            efficiency,
-            True,
-            grade
-        )
-
-
-        if result["net_power"] >= 0:
-
-            return speed
-
-
-    return None
-
+    angle = math.atan(grade / 100.0)
+    return mass * GRAVITY * math.sin(angle) * distance
 
 
 def calculate_energy(
-        mass,
-        speed_kmh,
-        LD_ratio,
-        turbine_diameter,
-        efficiency,
-        turbine_active=True,
-        grade=0
+    mass,
+    speed_kmh,
+    LD_ratio,
+    turbine_diameter,
+    efficiency,
+    turbine_active=True,
+    grade=0,
 ):
+    """
+    Instantaneous power balance at one vehicle speed.
 
+    Generation and turbine aerodynamic penalty are deliberately kept separate.
+    No turbine penalty is subtracted from `recovered_power`.
+    """
 
     V = speed_kmh / 3.6
+
+    vehicle_drag_power = calculate_vehicle_drag_power(
+        speed_kmh,
+        LD_ratio,
+    )
 
     gravity_power = calculate_gravity_power(
         mass,
         speed_kmh,
-        grade
-    )
-    
-    # Vehicle aerodynamics
-
-    frontal_area = 0.0005 * mass
-
-    Cd = 1 / LD_ratio
-
-
-    drag_force = (
-        0.5 *
-        AIR_DENSITY *
-        Cd *
-        frontal_area *
-        V**2
+        grade,
     )
 
-
-    vehicle_drag_power = drag_force * V
-
-
-
-    # Turbine
-
-    turbine_area = (
-        math.pi *
-        (turbine_diameter/2)**2
-    )
-
+    turbine_area = math.pi * (turbine_diameter / 2.0) ** 2
 
     available_wind_power = (
-        0.5 *
-        AIR_DENSITY *
-        turbine_area *
-        V**3
+        0.5
+        * AIR_DENSITY
+        * turbine_area
+        * V**3
     )
-
 
     if turbine_active:
-
-        recovered_power = (
-            available_wind_power *
-            efficiency
-        )
-
-        turbine_drag_power = (
-            available_wind_power
-        )
-
+        recovered_power = available_wind_power * efficiency
+        turbine_drag_power = available_wind_power
     else:
+        recovered_power = 0.0
+        turbine_drag_power = 0.0
 
-        recovered_power = 0
+    # Positive means the turbine adds a net load to the vehicle.
+    turbine_net_cost_power = turbine_drag_power - recovered_power
 
-        turbine_drag_power = 0
-
-    turbine_net_effect = (
-        recovered_power -
-        turbine_drag_power
+    # Mechanical power that the propulsion system would have to supply before
+    # crediting the generated electricity. A sufficiently steep downhill can
+    # make this zero.
+    total_power_spent = max(
+        vehicle_drag_power + gravity_power + turbine_drag_power,
+        0.0,
     )
 
+    # Signed battery-side screening balance. Negative means that, under the
+    # simplified model, the event could charge rather than consume battery.
+    net_battery_power = total_power_spent - recovered_power
 
-    net_power = (
-        gravity_power +
-        turbine_net_effect
+    recovery_vs_total_spent_pct = (
+        recovered_power / total_power_spent * 100.0
+        if total_power_spent > 0
+        else 0.0
     )
 
-
-    total_power_effect = (
-        vehicle_drag_power +
-        turbine_drag_power -
-        recovered_power
+    recovery_vs_turbine_penalty_pct = (
+        recovered_power / turbine_drag_power * 100.0
+        if turbine_drag_power > 0
+        else 0.0
     )
-
-
-    recovery_percentage = 0
-
-
 
     return {
-
         "vehicle_drag_power": vehicle_drag_power,
-
         "turbine_drag_power": turbine_drag_power,
-
         "available_wind_power": available_wind_power,
-
         "recovered_power": recovered_power,
+        "gravity_power": gravity_power,
+        "turbine_net_cost_power": turbine_net_cost_power,
+        "total_power_spent": total_power_spent,
+        "net_battery_power": net_battery_power,
+        "recovery_vs_total_spent_pct": recovery_vs_total_spent_pct,
+        "recovery_vs_turbine_penalty_pct": recovery_vs_turbine_penalty_pct,
 
-        "net_power": net_power,
-
-        "total_power_effect": total_power_effect,
-
-        "recovery_percentage": recovery_percentage,
-
-        "gravity_power": gravity_power, 
-
-        "turbine_net_effect": turbine_net_effect
-
+        # Compatibility aliases for code that still expects the old keys.
+        "net_power": recovered_power - turbine_drag_power,
+        "total_power_effect": net_battery_power,
+        "recovery_percentage": recovery_vs_total_spent_pct,
+        "turbine_net_effect": recovered_power - turbine_drag_power,
     }
 
-def should_open_gate(
-        closed_result,
-        open_result
+
+def should_open_gate(speed_kmh, opening_speed_kmh):
+    """The physical gate state: open at or above the chosen threshold."""
+
+    return speed_kmh >= opening_speed_kmh
+
+
+def simulate_speed_event(
+    initial_speed,
+    final_speed,
+    duration,
+    mass,
+    LD_ratio,
+    turbine_diameter,
+    efficiency,
+    gate_mode="always_open",
+    opening_speed=0.0,
+    grade=0,
+    steps=200,
 ):
+    """
+    Integrate one simplified event using a linear speed-vs-time trace.
 
-    if open_result["total_power_effect"] < closed_result["total_power_effect"]:
+    The same function is used for acceleration, slight-speed-change cruise,
+    and braking. For smart gates, the turbine is open only while vehicle speed
+    is at or above `opening_speed`.
+    """
 
-        return True
+    if duration <= 0:
+        raise ValueError("duration must be greater than zero")
 
-    return False
+    dt = duration / steps
+
+    vehicle_drag_energy = 0.0
+    gravity_energy = 0.0
+    turbine_drag_energy = 0.0
+    recovered_energy = 0.0
+    distance = 0.0
+    open_time = 0.0
+
+    for i in range(steps):
+        fraction = (i + 0.5) / steps
+        speed = initial_speed + (final_speed - initial_speed) * fraction
+        V = speed / 3.6
+
+        if gate_mode == "always_open":
+            turbine_active = True
+        elif gate_mode == "smart":
+            turbine_active = should_open_gate(speed, opening_speed)
+        else:
+            turbine_active = False
+
+        result = calculate_energy(
+            mass,
+            speed,
+            LD_ratio,
+            turbine_diameter,
+            efficiency,
+            turbine_active,
+            grade,
+        )
+
+        distance += V * dt
+        vehicle_drag_energy += result["vehicle_drag_power"] * dt
+        gravity_energy += result["gravity_power"] * dt
+        turbine_drag_energy += result["turbine_drag_power"] * dt
+        recovered_energy += result["recovered_power"] * dt
+
+        if turbine_active:
+            open_time += dt
+
+    kinetic_energy_change = calculate_kinetic_energy_change(
+        mass,
+        initial_speed,
+        final_speed,
+    )
+
+    # Required wheel work for the prescribed event before crediting generated
+    # electricity. It can be negative during a braking/downhill event.
+    required_wheel_energy = (
+        kinetic_energy_change
+        + vehicle_drag_energy
+        + gravity_energy
+        + turbine_drag_energy
+    )
+
+    total_energy_spent = max(required_wheel_energy, 0.0)
+    braking_energy_to_dissipate = max(-required_wheel_energy, 0.0)
+    net_battery_energy = total_energy_spent - recovered_energy
+
+    recovery_vs_total_spent_pct = (
+        recovered_energy / total_energy_spent * 100.0
+        if total_energy_spent > 0
+        else 0.0
+    )
+
+    recovery_vs_turbine_penalty_pct = (
+        recovered_energy / turbine_drag_energy * 100.0
+        if turbine_drag_energy > 0
+        else 0.0
+    )
+
+    kinetic_energy_lost = max(-kinetic_energy_change, 0.0)
+    recovery_vs_kinetic_loss_pct = (
+        recovered_energy / kinetic_energy_lost * 100.0
+        if kinetic_energy_lost > 0
+        else 0.0
+    )
+
+    distance_km = distance / 1000.0
+    recovered_wh_per_km = (
+        recovered_energy / 3600.0 / distance_km
+        if distance_km > 0
+        else 0.0
+    )
+
+    net_battery_wh_per_km = (
+        net_battery_energy / 3600.0 / distance_km
+        if distance_km > 0
+        else 0.0
+    )
+
+    return {
+        "initial_speed": initial_speed,
+        "final_speed": final_speed,
+        "duration_s": duration,
+        "distance_m": distance,
+        "open_time_s": open_time,
+        "kinetic_energy_change": kinetic_energy_change,
+        "vehicle_drag_energy": vehicle_drag_energy,
+        "gravity_energy": gravity_energy,
+        "turbine_drag_energy": turbine_drag_energy,
+        "recovered_energy": recovered_energy,
+        "required_wheel_energy": required_wheel_energy,
+        "total_energy_spent": total_energy_spent,
+        "braking_energy_to_dissipate": braking_energy_to_dissipate,
+        "net_battery_energy": net_battery_energy,
+        "recovery_vs_total_spent_pct": recovery_vs_total_spent_pct,
+        "recovery_vs_turbine_penalty_pct": recovery_vs_turbine_penalty_pct,
+        "recovery_vs_kinetic_loss_pct": recovery_vs_kinetic_loss_pct,
+        "recovered_wh_per_km": recovered_wh_per_km,
+        "net_battery_wh_per_km": net_battery_wh_per_km,
+    }
+
+
+def scan_gate_opening_speeds(
+    initial_speed,
+    final_speed,
+    duration,
+    mass,
+    LD_ratio,
+    turbine_diameter,
+    efficiency,
+    grade=0,
+):
+    """Evaluate every integer opening speed encountered during the event."""
+
+    low_speed = int(math.ceil(min(initial_speed, final_speed)))
+    high_speed = int(math.floor(max(initial_speed, final_speed)))
+
+    if high_speed < low_speed:
+        return []
+
+    scan = []
+
+    for opening_speed in range(low_speed, high_speed + 1):
+        result = simulate_speed_event(
+            initial_speed,
+            final_speed,
+            duration,
+            mass,
+            LD_ratio,
+            turbine_diameter,
+            efficiency,
+            gate_mode="smart",
+            opening_speed=opening_speed,
+            grade=grade,
+        )
+
+        scan.append({
+            "opening_speed": opening_speed,
+            "recovered_energy": result["recovered_energy"],
+            "turbine_drag_energy": result["turbine_drag_energy"],
+            "total_energy_spent": result["total_energy_spent"],
+            "net_battery_energy": result["net_battery_energy"],
+            "recovery_vs_total_spent_pct": result[
+                "recovery_vs_total_spent_pct"
+            ],
+            "recovery_vs_turbine_penalty_pct": result[
+                "recovery_vs_turbine_penalty_pct"
+            ],
+            "recovery_vs_kinetic_loss_pct": result[
+                "recovery_vs_kinetic_loss_pct"
+            ],
+        })
+
+    return scan
+
+
+def find_optimal_gate_speed(
+    initial_speed,
+    final_speed,
+    duration,
+    mass,
+    LD_ratio,
+    turbine_diameter,
+    efficiency,
+    grade=0,
+):
+    """
+    Find the threshold that maximizes recovered energy / total energy spent.
+
+    If several thresholds have the same percentage, prefer the one that
+    recovers more absolute electrical energy.
+    """
+
+    scan = scan_gate_opening_speeds(
+        initial_speed,
+        final_speed,
+        duration,
+        mass,
+        LD_ratio,
+        turbine_diameter,
+        efficiency,
+        grade,
+    )
+
+    if not scan:
+        return None, []
+
+    if final_speed < initial_speed:
+        objective_key = "recovery_vs_kinetic_loss_pct"
+        objective_label = "recovered energy / kinetic energy lost"
+    else:
+        objective_key = "recovery_vs_total_spent_pct"
+        objective_label = "recovered energy / total energy spent"
+
+    best = max(
+        scan,
+        key=lambda row: (
+            row[objective_key],
+            row["recovered_energy"],
+        ),
+    )
+
+    best = dict(best)
+    best["objective_key"] = objective_key
+    best["objective_label"] = objective_label
+
+    return best, scan
+
