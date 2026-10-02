@@ -9,6 +9,61 @@ GRAVITY = 9.81
 # neither quantity determines the vehicle's projected frontal area.
 REFERENCE_FRONTAL_AREA = 2.2  # m^2
 
+# Simplified actuator-disk turbine model.  The rotor is assumed to operate at
+# an aerodynamic power coefficient Cp = 0.40 in the realistic case.  Cp and Ct
+# are related through classical 1-D actuator-disk momentum theory.
+TURBINE_AERODYNAMIC_CP = 0.40
+BETZ_LIMIT = 16.0 / 27.0
+
+# Enhanced-recovery screening assumptions.  These are deliberately constants,
+# not extra user inputs, so the application stays a simple concept screener.
+SOLAR_ROOF_AREA = 2.0  # m^2 of roof-mounted PV
+SOLAR_IRRADIANCE = 1000.0  # W/m^2, peak/STC-style irradiance
+SOLAR_PANEL_EFFICIENCY = 0.22
+SOLAR_CHARGE_EFFICIENCY = 0.95
+
+REGEN_MOTOR_GENERATOR_EFFICIENCY = 0.90
+REGEN_INVERTER_EFFICIENCY = 0.95
+REGEN_BATTERY_CHARGE_EFFICIENCY = 0.95
+REGEN_BRAKING_EFFICIENCY = (
+    REGEN_MOTOR_GENERATOR_EFFICIENCY
+    * REGEN_INVERTER_EFFICIENCY
+    * REGEN_BATTERY_CHARGE_EFFICIENCY
+)
+
+
+def _axial_induction_from_cp(cp):
+    """Return the low-induction actuator-disk solution for a given Cp."""
+
+    cp = max(0.0, min(cp, BETZ_LIMIT))
+
+    if cp == 0.0:
+        return 0.0
+
+    low = 0.0
+    high = 1.0 / 3.0
+
+    for _ in range(80):
+        a = 0.5 * (low + high)
+        cp_here = 4.0 * a * (1.0 - a) ** 2
+
+        if cp_here < cp:
+            low = a
+        else:
+            high = a
+
+    return 0.5 * (low + high)
+
+
+TURBINE_AXIAL_INDUCTION = _axial_induction_from_cp(
+    TURBINE_AERODYNAMIC_CP
+)
+TURBINE_THRUST_COEFFICIENT = (
+    4.0
+    * TURBINE_AXIAL_INDUCTION
+    * (1.0 - TURBINE_AXIAL_INDUCTION)
+)
+
 
 def get_efficiency(mode, user_value):
     """Return overall wind-to-electric efficiency as a fraction."""
@@ -111,7 +166,13 @@ def calculate_turbine_drag_energy(
         speed = initial_speed + (final_speed - initial_speed) * fraction
         V = speed / 3.6
 
-        drag_power = 0.5 * AIR_DENSITY * turbine_area * V**3
+        drag_power = (
+            0.5
+            * AIR_DENSITY
+            * turbine_area
+            * V**3
+            * TURBINE_THRUST_COEFFICIENT
+        )
         total_energy += drag_power * dt
 
     return total_energy
@@ -163,8 +224,16 @@ def calculate_energy(
     )
 
     if turbine_active:
+        # `efficiency` is the overall free-stream-wind-to-electric coefficient.
+        # In realistic mode it is 0.40 * 0.90 * 0.90 = 0.324.
         recovered_power = available_wind_power * efficiency
-        turbine_drag_power = available_wind_power
+
+        # Turbine-induced vehicle drag is represented by actuator-disk thrust,
+        # not by assigning the entire free-stream kinetic flux as a penalty.
+        turbine_drag_power = (
+            available_wind_power
+            * TURBINE_THRUST_COEFFICIENT
+        )
     else:
         recovered_power = 0.0
         turbine_drag_power = 0.0
@@ -182,7 +251,7 @@ def calculate_energy(
 
     # Signed battery-side screening balance. Negative means that, under the
     # simplified model, the event could charge rather than consume battery.
-    net_battery_power = total_power_spent - recovered_power
+    net_event_power_after_recovery = total_power_spent - recovered_power
 
     recovery_vs_total_spent_pct = (
         recovered_power / total_power_spent * 100.0
@@ -204,15 +273,70 @@ def calculate_energy(
         "gravity_power": gravity_power,
         "turbine_net_cost_power": turbine_net_cost_power,
         "total_power_spent": total_power_spent,
-        "net_battery_power": net_battery_power,
+        "net_event_power_after_recovery": net_event_power_after_recovery,
+
+        # Compatibility alias. This is NOT a complete battery-consumption model;
+        # it mixes simplified wheel-side demand with generated electrical power.
+        "net_battery_power": net_event_power_after_recovery,
         "recovery_vs_total_spent_pct": recovery_vs_total_spent_pct,
         "recovery_vs_turbine_penalty_pct": recovery_vs_turbine_penalty_pct,
 
         # Compatibility aliases for code that still expects the old keys.
         "net_power": recovered_power - turbine_drag_power,
-        "total_power_effect": net_battery_power,
+        "total_power_effect": net_event_power_after_recovery,
         "recovery_percentage": recovery_vs_total_spent_pct,
         "turbine_net_effect": recovered_power - turbine_drag_power,
+    }
+
+
+def calculate_solar_energy(duration, sunlight_percentage=100.0):
+    """
+    Roof-PV electrical energy delivered toward the battery.
+
+    `sunlight_percentage` scales the reference 1000 W/m² irradiance from
+    0% (no usable sunlight) to 100% (peak/STC-style irradiance).
+    """
+
+    sunlight_fraction = max(
+        0.0,
+        min(float(sunlight_percentage), 100.0),
+    ) / 100.0
+
+    available_irradiance = (
+        SOLAR_IRRADIANCE * sunlight_fraction
+    )
+
+    solar_power = (
+        available_irradiance
+        * SOLAR_ROOF_AREA
+        * SOLAR_PANEL_EFFICIENCY
+        * SOLAR_CHARGE_EFFICIENCY
+    )
+
+    return {
+        "sunlight_percentage": sunlight_fraction * 100.0,
+        "available_irradiance": available_irradiance,
+        "solar_power": solar_power,
+        "solar_energy": solar_power * duration,
+    }
+
+
+def calculate_regenerative_braking_energy(braking_energy_to_dissipate):
+    """
+    Simplified traction-motor regenerative braking.
+
+    `braking_energy_to_dissipate` is wheel-side braking energy remaining after
+    aerodynamic, grade and turbine-drag effects have already been accounted for.
+    """
+
+    available = max(braking_energy_to_dissipate, 0.0)
+
+    return {
+        "regen_available_energy": available,
+        "regen_recovered_energy": (
+            available * REGEN_BRAKING_EFFICIENCY
+        ),
+        "regen_efficiency": REGEN_BRAKING_EFFICIENCY,
     }
 
 
@@ -303,7 +427,7 @@ def simulate_speed_event(
 
     total_energy_spent = max(required_wheel_energy, 0.0)
     braking_energy_to_dissipate = max(-required_wheel_energy, 0.0)
-    net_battery_energy = total_energy_spent - recovered_energy
+    net_event_energy_after_recovery = total_energy_spent - recovered_energy
 
     recovery_vs_total_spent_pct = (
         recovered_energy / total_energy_spent * 100.0
@@ -331,8 +455,8 @@ def simulate_speed_event(
         else 0.0
     )
 
-    net_battery_wh_per_km = (
-        net_battery_energy / 3600.0 / distance_km
+    net_event_wh_per_km_after_recovery = (
+        net_event_energy_after_recovery / 3600.0 / distance_km
         if distance_km > 0
         else 0.0
     )
@@ -351,12 +475,17 @@ def simulate_speed_event(
         "required_wheel_energy": required_wheel_energy,
         "total_energy_spent": total_energy_spent,
         "braking_energy_to_dissipate": braking_energy_to_dissipate,
-        "net_battery_energy": net_battery_energy,
+        "net_event_energy_after_recovery": net_event_energy_after_recovery,
+
+        # Compatibility alias. This is a simplified cross-domain screening
+        # balance, not full battery energy consumption.
+        "net_battery_energy": net_event_energy_after_recovery,
         "recovery_vs_total_spent_pct": recovery_vs_total_spent_pct,
         "recovery_vs_turbine_penalty_pct": recovery_vs_turbine_penalty_pct,
         "recovery_vs_kinetic_loss_pct": recovery_vs_kinetic_loss_pct,
         "recovered_wh_per_km": recovered_wh_per_km,
-        "net_battery_wh_per_km": net_battery_wh_per_km,
+        "net_event_wh_per_km_after_recovery": net_event_wh_per_km_after_recovery,
+        "net_battery_wh_per_km": net_event_wh_per_km_after_recovery,
     }
 
 
@@ -370,7 +499,14 @@ def scan_gate_opening_speeds(
     efficiency,
     grade=0,
 ):
-    """Evaluate every integer opening speed encountered during the event."""
+    """
+    Evaluate every integer gate threshold on the same complete speed event.
+
+    Keeping the event fixed is important: changing the event endpoint for each
+    candidate would make the thresholds incomparable. Braking events therefore
+    remain full prescribed events while the gate simply closes below each
+    candidate threshold.
+    """
 
     low_speed = int(math.ceil(min(initial_speed, final_speed)))
     high_speed = int(math.floor(max(initial_speed, final_speed)))
@@ -399,7 +535,9 @@ def scan_gate_opening_speeds(
             "recovered_energy": result["recovered_energy"],
             "turbine_drag_energy": result["turbine_drag_energy"],
             "total_energy_spent": result["total_energy_spent"],
-            "net_battery_energy": result["net_battery_energy"],
+            "net_event_energy_after_recovery": result[
+                "net_event_energy_after_recovery"
+            ],
             "recovery_vs_total_spent_pct": result[
                 "recovery_vs_total_spent_pct"
             ],
@@ -412,7 +550,6 @@ def scan_gate_opening_speeds(
         })
 
     return scan
-
 
 def find_optimal_gate_speed(
     initial_speed,
@@ -465,4 +602,3 @@ def find_optimal_gate_speed(
     best["objective_label"] = objective_label
 
     return best, scan
-
