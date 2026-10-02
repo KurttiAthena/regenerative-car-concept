@@ -1,154 +1,65 @@
-from car_physics_model import (
-    calculate_energy,
-    should_open_gate,
-    calculate_kinetic_energy_change,
-    calculate_drag_energy,
-    calculate_gravity_energy,
-    calculate_turbine_drag_energy
-)
-
-CITY_CYCLE = [
-
-    (0,40,100,8,"acceleration"),
-
-    (40,50,300,20,"cruise")
-
-]
+from car_physics_model import simulate_speed_event
 
 
-HIGHWAY_CYCLE = [
-
-    (50,100,1000,20,"acceleration"),
-
-    (100,120,2000,40,"cruise")
-
-]
+# All synthetic events use the same duration. Distance is derived from the
+# speed-vs-time trace so the kinematics remain self-consistent.
+NORMALIZED_EVENT_DURATION = 20.0  # seconds
 
 
-MOTORWAY_CYCLE = [
-
-    (100,160,1500,15,"acceleration"),
-
-    (130,140,5000,120,"cruise"),
-
-]
-
-def integrate_turbine_energy(
-        initial_speed,
-        final_speed,
-        duration,
-        turbine_diameter,
-        efficiency,
-        steps=100
-):
-
-    total_energy = 0
-
-    dt = duration / steps
-
-
-    for i in range(steps):
-
-        speed = (
-            initial_speed +
-            (final_speed-initial_speed)
-            *
-            i/steps
-        )
-
-
-        V = speed / 3.6
-
-
-        turbine_area = (
-            3.14159 *
-            (turbine_diameter/2)**2
-        )
-
-
-        wind_power = (
-            0.5 *
-            1.225 *
-            turbine_area *
-            V**3
-        )
-
-
-        recovered_power = (
-            wind_power *
-            efficiency
-        )
-
-
-        total_energy += (
-            recovered_power *
-            dt
-        )
-
-
-    return total_energy
-
-def turbine_decision(
-        mass,
-        LD,
-        turbine_diameter,
-        efficiency,
-        speed,
-        gate_mode,
-        grade
-):
-
-    if gate_mode == "always_open":
-        return True
-
-
-    elif gate_mode == "smart":
-
-        closed_result = calculate_energy(
-            mass,
-            speed,
-            LD,
-            turbine_diameter,
-            efficiency,
-            False,
-            grade
-        )
-
-
-        open_result = calculate_energy(
-            mass,
-            speed,
-            LD,
-            turbine_diameter,
-            efficiency,
-            True,
-            grade
-        )
-
-
-        return should_open_gate(
-            closed_result,
-            open_result
-        )
-
-
-    return False
-
-def calculate_event_recovery_ratio(
-        recovered_energy,
-        energy_available
-):
-
-    if energy_available <= 0:
-
-        return 0
-
+def _make_event(start_speed, end_speed, condition):
+    average_speed_ms = ((start_speed + end_speed) / 2.0) / 3.6
+    distance = average_speed_ms * NORMALIZED_EVENT_DURATION
 
     return (
-        recovered_energy /
-        energy_available *
-        100
+        start_speed,
+        end_speed,
+        distance,
+        NORMALIZED_EVENT_DURATION,
+        condition,
     )
+
+
+DIRT_ROAD_CYCLE = [
+    _make_event(0, 30, "acceleration"),
+    _make_event(20, 30, "cruise"),
+]
+
+CITY_CYCLE = [
+    _make_event(0, 50, "acceleration"),
+    _make_event(40, 50, "cruise"),
+]
+
+HIGHWAY_CYCLE = [
+    _make_event(50, 100, "acceleration"),
+    _make_event(90, 100, "cruise"),
+]
+
+MOTORWAY_CYCLE = [
+    _make_event(80, 130, "acceleration"),
+    _make_event(120, 130, "cruise"),
+]
+
+
+def get_cycle_event(cycle, event_type, braking_mode=False):
+    """Return the single selected event; acceleration and cruise are never summed."""
+
+    for start_speed, end_speed, distance, duration, condition in cycle:
+        if condition != event_type:
+            continue
+
+        if braking_mode:
+            start_speed, end_speed = end_speed, start_speed
+
+        return {
+            "start_speed": start_speed,
+            "end_speed": end_speed,
+            "distance": distance,
+            "duration": duration,
+            "condition": condition,
+        }
+
+    raise ValueError(f"No '{event_type}' event exists in the selected cycle")
+
 
 def simulate_cycle(
     cycle,
@@ -157,329 +68,42 @@ def simulate_cycle(
     turbine_diameter,
     efficiency,
     gate_mode,
-    grade, 
-    braking_mode, 
-    event_type="acceleration"
+    grade,
+    braking_mode,
+    event_type="acceleration",
+    opening_speed=0.0,
 ):
-
-    total_recovered_energy = 0
-    total_available_energy = 0
-
-    acceleration_recovered = 0
-    acceleration_available = 0
-
-    braking_recovered = 0
-    braking_available = 0
-
-
-    for start_speed,end_speed,distance,time,condition in cycle:
-
-        if condition != event_type:
-            continue
-
-        recovered_energy = 0
-
-        energy_available = 0
-        
-        is_braking = False
-        
-        if braking_mode:
-
-            start_speed, end_speed = end_speed, start_speed
-            is_braking = True
-
-
-        # ---------------------------------
-        # ACCELERATION
-        # ---------------------------------
-
-        if condition == "acceleration" and not is_braking:
-
-
-            energy_available = (
-                calculate_kinetic_energy_change(
-                    mass,
-                    start_speed,
-                    end_speed
-                )
-                +
-                calculate_drag_energy(
-                    mass,
-                    LD,
-                    (start_speed+end_speed)/2,
-                    distance
-                )
-                +
-                calculate_gravity_energy(
-                    mass,
-                    grade,
-                    distance
-                )
-            )
-
-            average_speed = (
-                start_speed +
-                end_speed
-            ) / 2
-
-
-            turbine_open = turbine_decision(
-                mass,
-                LD,
-                turbine_diameter,
-                efficiency,
-                average_speed,
-                gate_mode,
-                grade
-            )
-
-
-            if turbine_open:
-
-                electric_energy = integrate_turbine_energy(
-                    start_speed,
-                    end_speed,
-                    time,
-                    turbine_diameter,
-                    efficiency
-                )
-
-
-                turbine_drag_energy = calculate_turbine_drag_energy(
-                    start_speed,
-                    end_speed,
-                    time,
-                    turbine_diameter
-                )
-
-
-                recovered_energy = (
-                    electric_energy -
-                    turbine_drag_energy
-                )
-
-            else:
-
-                recovered_energy = 0
-
-
-            if is_braking:
-
-                braking_recovered += recovered_energy
-
-                braking_available += energy_available
-
-            else:
-
-                acceleration_recovered += recovered_energy
-
-                acceleration_available += energy_available
-
-
-        # ---------------------------------
-        # CRUISE
-        # ---------------------------------
-
-        elif condition == "cruise" and not is_braking:
-
-
-            energy_available = (
-                calculate_drag_energy(
-                    mass,
-                    LD,
-                    end_speed,
-                    distance
-                )
-                +
-                calculate_gravity_energy(
-                    mass,
-                    grade,
-                    distance
-                )
-            )
-
-
-            turbine_open = turbine_decision(
-                mass,
-                LD,
-                turbine_diameter,
-                efficiency,
-                end_speed,
-                gate_mode,
-                grade
-            )
-
-
-            if turbine_open:
-
-                electric_energy = integrate_turbine_energy(
-                    start_speed,
-                    end_speed,
-                    time,
-                    turbine_diameter,
-                    efficiency
-                )
-
-
-                turbine_drag_energy = calculate_turbine_drag_energy(
-                    start_speed,
-                    end_speed,
-                    time,
-                    turbine_diameter
-                )
-
-
-                recovered_energy = (
-                    electric_energy -
-                    turbine_drag_energy
-                )
-
-            else:
-
-                recovered_energy = 0
-
-            if is_braking:
-
-                braking_recovered += recovered_energy
-
-                braking_available += energy_available
-
-            else:
-
-                acceleration_recovered += recovered_energy
-
-                acceleration_available += energy_available
-
-
-        # ---------------------------------
-        # BRAKING
-        # ---------------------------------
-
-        elif is_braking:
-
-
-            energy_available = (
-                -calculate_kinetic_energy_change(
-                    mass,
-                    start_speed,
-                    end_speed
-                )
-                +
-                calculate_gravity_energy(
-                    mass,
-                    grade,
-                    distance
-                 )
-            )
-
-
-            turbine_open = turbine_decision(
-                mass,
-                LD,
-                turbine_diameter,
-                efficiency,
-                start_speed,
-                gate_mode,
-                grade
-            )
-
-
-            if turbine_open:
-
-                electric_energy = integrate_turbine_energy(
-                    start_speed,
-                    end_speed,
-                    time,
-                    turbine_diameter,
-                    efficiency
-                )
-
-                turbine_drag_energy = calculate_turbine_drag_energy(
-                    start_speed,
-                    end_speed,
-                    time,
-                    turbine_diameter
-                )
-
-
-                recovered_energy = (
-                    electric_energy -
-                    turbine_drag_energy
-                )
-
-            else:
-
-                recovered_energy = 0
-
-            if is_braking:
-
-                braking_recovered += recovered_energy
-
-                braking_available += energy_available
-
-            else:
-
-                acceleration_recovered += recovered_energy
-
-                acceleration_available += energy_available
-
-        total_recovered_energy += recovered_energy
-
-        total_available_energy += energy_available
-
-    if total_available_energy > 0:
-
-        recovery_percentage = (
-            total_recovered_energy /
-            total_available_energy *
-            100
-        )
-
-    else:
-
-        recovery_percentage = 0
-
-    return {
-
-        "mode": (
-            ("Braking / " if braking_mode else "Normal / ")
-            + event_type.capitalize()
-        ),
-
-        "total_recovered_energy":
-            total_recovered_energy,
-
-        "total_available_energy":
-            total_available_energy,
-
-        "recovery_percentage":
-
-            (
-            braking_recovered /
-            braking_available * 100
-            if braking_mode and braking_available > 0
-            else
-            acceleration_recovered /
-            acceleration_available * 100
-            if acceleration_available > 0
-            else 0
-            ),
-
-        "acceleration":
-        {
-            "recovered":
-                acceleration_recovered,
-
-            "available":
-                acceleration_available
-        },
-
-        "braking":
-        {
-            "recovered":
-                braking_recovered,
-
-            "available":
-                braking_available
-        }
-    }
+    """Simulate exactly one user-selected event from the chosen driving scenario."""
+
+    event = get_cycle_event(
+        cycle,
+        event_type,
+        braking_mode,
+    )
+
+    result = simulate_speed_event(
+        event["start_speed"],
+        event["end_speed"],
+        event["duration"],
+        mass,
+        LD,
+        turbine_diameter,
+        efficiency,
+        gate_mode=gate_mode,
+        opening_speed=opening_speed,
+        grade=grade,
+    )
+
+    result["mode"] = (
+        ("Braking / " if braking_mode else "Normal / ")
+        + event_type.capitalize()
+    )
+
+    result["event"] = event
+
+    # Compatibility aliases used by the previous app.py.
+    result["total_recovered_energy"] = result["recovered_energy"]
+    result["total_available_energy"] = result["total_energy_spent"]
+    result["recovery_percentage"] = result["recovery_vs_total_spent_pct"]
+
+    return result
