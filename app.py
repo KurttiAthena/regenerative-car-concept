@@ -8,6 +8,14 @@ from car_physics_model import (
     get_efficiency,
     simulate_speed_event,
     find_optimal_gate_speed,
+    calculate_solar_energy,
+    calculate_regenerative_braking_energy,
+    TURBINE_THRUST_COEFFICIENT,
+    SOLAR_ROOF_AREA,
+    SOLAR_IRRADIANCE,
+    SOLAR_PANEL_EFFICIENCY,
+    SOLAR_CHARGE_EFFICIENCY,
+    REGEN_BRAKING_EFFICIENCY,
 )
 
 from driving_cycles import (
@@ -82,8 +90,8 @@ def render_event_metrics(result, braking_mode=False):
         )
     else:
         col6.metric(
-            "Net battery-side event energy",
-            f"{kj(result['net_battery_energy']):.2f} kJ",
+            "Simplified net event energy after recovery",
+            f"{kj(result['net_event_energy_after_recovery']):.2f} kJ",
         )
 
     st.caption(
@@ -91,6 +99,19 @@ def render_event_metrics(result, braking_mode=False):
         f"{result['distance_m']:.0f} m travelled. "
         f"Turbine open for {result['open_time_s']:.1f} s."
     )
+
+
+def render_result_guide():
+    with st.expander("Why do some results change much more than others?"):
+        st.markdown(
+            f"""
+- **Absolute turbine power changes strongly with speed and turbine diameter.** Both generated power and turbine-induced drag scale approximately with vehicle speed cubed, and with turbine swept area (diameter squared).
+- **Generated / turbine penalty changes very little with speed.** With a fixed turbine efficiency and fixed actuator-disk thrust coefficient, both numerator and denominator scale with the same speed and area terms. Their ratio is therefore mostly fixed by the assumed turbine coefficients.
+- **Mass mainly changes acceleration, hill and braking energy.** It does not directly change the kinetic power in the air crossing a fixed-size turbine.
+- **L/D changes the baseline vehicle aerodynamic-drag estimate, not the turbine's own airflow power.**
+- The current simplified actuator-disk model uses a turbine thrust coefficient of **{TURBINE_THRUST_COEFFICIENT:.3f}**.
+            """
+        )
 
 
 # ==================================================
@@ -195,19 +216,56 @@ st.sidebar.caption(
     "Distance is calculated from the speed trace rather than imposed separately."
 )
 
+st.sidebar.divider()
+additional_vehicle_efficiency = st.sidebar.checkbox(
+    "Additional vehicle efficiency?"
+)
+
+if additional_vehicle_efficiency:
+    solar_light_percentage = st.sidebar.slider(
+        "Solar light available (%)",
+        0,
+        100,
+        100,
+        help=(
+            "Scales the reference solar irradiance from 0% (no usable "
+            "sunlight) to 100% (1000 W/m² peak/STC-style irradiance)."
+        ),
+    )
+    st.sidebar.caption(
+        "Adds roof solar to the comparison. Regenerative braking is added "
+        "only when braking/deceleration is selected."
+    )
+else:
+    solar_light_percentage = 0
+
 
 # ==================================================
 # TABS
 # ==================================================
 
-tab1, tab2, tab3, tab4 = st.tabs(
-    [
-        "Version 1 - Always Open",
-        "Version 2 - Smart Gates",
-        "Direct Comparison",
-        "Limitations",
-    ]
-)
+tab_labels = [
+    "Version 1 - Always Open",
+    "Version 2 - Smart Gates",
+    "Direct Comparison",
+]
+
+if additional_vehicle_efficiency:
+    tab_labels.append("Additional Vehicle Efficiency")
+
+tab_labels.append("Limitations")
+tabs = st.tabs(tab_labels)
+
+tab1 = tabs[0]
+tab2 = tabs[1]
+tab3 = tabs[2]
+
+if additional_vehicle_efficiency:
+    additional_efficiency_tab = tabs[3]
+    limitations_tab = tabs[4]
+else:
+    additional_efficiency_tab = None
+    limitations_tab = tabs[3]
 
 
 # ==================================================
@@ -270,6 +328,7 @@ with tab1:
         v1_result,
         braking_mode,
     )
+    render_result_guide()
 
     st.divider()
     st.subheader("Instantaneous power across vehicle speed")
@@ -312,18 +371,20 @@ with tab2:
     st.header("Version 2 - Smart gate turbine")
 
     if variable_cycle:
-        v2_event = get_cycle_event(
+        # Use the normal cycle definition to establish the available speed
+        # range. Braking remains an external analysis mode.
+        base_v2_event = get_cycle_event(
             selected_cycle,
             event_type,
-            braking_mode,
+            False,
         )
 
-        v2_initial_speed = v2_event["start_speed"]
-        v2_final_speed = v2_event["end_speed"]
-        v2_duration = v2_event["duration"]
+        base_start_speed = base_v2_event["start_speed"]
+        base_end_speed = base_v2_event["end_speed"]
+        v2_duration = base_v2_event["duration"]
 
-        speed_low = int(min(v2_initial_speed, v2_final_speed))
-        speed_high = int(max(v2_initial_speed, v2_final_speed))
+        speed_low = int(min(base_start_speed, base_end_speed))
+        speed_high = int(max(base_start_speed, base_end_speed))
         default_opening = int(round((speed_low + speed_high) / 2))
 
         opening_speed = st.slider(
@@ -333,6 +394,19 @@ with tab2:
             default_opening,
             key="v2_cycle_opening",
         )
+
+        if braking_mode:
+            # Full-stop braking event. The smart gate remains open only while
+            # speed is at or above the selected threshold.
+            v2_initial_speed = speed_high
+            v2_final_speed = 0
+            v2_scan_initial_speed = speed_high
+            v2_scan_final_speed = 0
+        else:
+            v2_initial_speed = base_start_speed
+            v2_final_speed = base_end_speed
+            v2_scan_initial_speed = base_start_speed
+            v2_scan_final_speed = base_end_speed
 
         st.write(
             f"Scenario: **{cycle_name} / {event_type.capitalize()}** — "
@@ -359,11 +433,17 @@ with tab2:
         v2_duration = NORMALIZED_EVENT_DURATION
 
         if braking_mode:
+            # Full-stop braking event. The turbine closes automatically once
+            # vehicle speed falls below the selected gate threshold.
             v2_initial_speed = max_speed
             v2_final_speed = 0
+            v2_scan_initial_speed = max_speed
+            v2_scan_final_speed = 0
         else:
             v2_initial_speed = 0
             v2_final_speed = max_speed
+            v2_scan_initial_speed = 0
+            v2_scan_final_speed = max_speed
 
     v2_result = simulate_speed_event(
         v2_initial_speed,
@@ -382,13 +462,14 @@ with tab2:
         v2_result,
         braking_mode,
     )
+    render_result_guide()
 
     st.divider()
     st.subheader("Gate-opening threshold scan")
 
     best_gate, gate_scan = find_optimal_gate_speed(
-        v2_initial_speed,
-        v2_final_speed,
+        v2_scan_initial_speed,
+        v2_scan_final_speed,
         v2_duration,
         mass,
         LD,
@@ -471,37 +552,16 @@ with tab2:
 with tab3:
     st.header("Version 1 vs Version 2 on the same event")
 
-    if variable_cycle:
-        comparison_event = get_cycle_event(
-            selected_cycle,
-            event_type,
-            braking_mode,
-        )
-
-        comparison_initial = comparison_event["start_speed"]
-        comparison_final = comparison_event["end_speed"]
-        comparison_duration = comparison_event["duration"]
-
-    else:
-        comparison_initial = v2_initial_speed
-        comparison_final = v2_final_speed
-        comparison_duration = v2_duration
-
-    comparison_v1 = simulate_speed_event(
-        comparison_initial,
-        comparison_final,
-        comparison_duration,
-        mass,
-        LD,
-        diameter,
-        eff,
-        gate_mode="always_open",
-        grade=grade,
-    )
+    # The comparison uses the same complete underlying Version 2 speed event
+    # for both concepts so the always-open and gated cases are directly
+    # comparable. Version 2 braking remains a full-stop event to 0 km/h.
+    comparison_scan_initial = v2_scan_initial_speed
+    comparison_scan_final = v2_scan_final_speed
+    comparison_duration = v2_duration
 
     comparison_best_gate, _ = find_optimal_gate_speed(
-        comparison_initial,
-        comparison_final,
+        comparison_scan_initial,
+        comparison_scan_final,
         comparison_duration,
         mass,
         LD,
@@ -511,6 +571,21 @@ with tab3:
     )
 
     if comparison_best_gate is not None:
+        comparison_initial = comparison_scan_initial
+        comparison_final = comparison_scan_final
+
+        comparison_v1 = simulate_speed_event(
+            comparison_initial,
+            comparison_final,
+            comparison_duration,
+            mass,
+            LD,
+            diameter,
+            eff,
+            gate_mode="always_open",
+            grade=grade,
+        )
+
         comparison_v2 = simulate_speed_event(
             comparison_initial,
             comparison_final,
@@ -581,22 +656,179 @@ with tab3:
 
 
 # ==================================================
+# OPTIONAL ADDITIONAL VEHICLE EFFICIENCY
+# ==================================================
+
+if additional_vehicle_efficiency:
+    with additional_efficiency_tab:
+        st.header(
+            "Additional vehicle efficiency: solar + regenerative braking"
+        )
+
+        st.info(
+            "This uses the same Version 1 vs Version 2 event as the Direct "
+            "Comparison tab, then adds roof-solar electricity at the selected "
+            "sunlight level. Traction-motor regenerative braking is included "
+            "only when 'Analyse braking / deceleration' is selected."
+        )
+
+        if comparison_best_gate is not None:
+            solar = calculate_solar_energy(
+                comparison_duration,
+                solar_light_percentage,
+            )
+
+            def enhanced_summary(result):
+                if braking_mode:
+                    regen = calculate_regenerative_braking_energy(
+                        result["braking_energy_to_dissipate"]
+                    )
+                    regen_energy = regen["regen_recovered_energy"]
+                else:
+                    regen_energy = 0.0
+
+                turbine_generated = result["recovered_energy"]
+                turbine_penalty = result["turbine_drag_energy"]
+                solar_energy = solar["solar_energy"]
+                energy_spent = result["total_energy_spent"]
+
+                total_electrical_input = (
+                    turbine_generated
+                    + regen_energy
+                    + solar_energy
+                )
+
+                return {
+                    "turbine_generated": turbine_generated,
+                    "turbine_penalty": turbine_penalty,
+                    "regen_energy": regen_energy,
+                    "solar_energy": solar_energy,
+                    "total_electrical_input": total_electrical_input,
+                    "energy_spent": energy_spent,
+                    "net_after_all_inputs": (
+                        energy_spent - total_electrical_input
+                    ),
+                }
+
+            enhanced_v1 = enhanced_summary(comparison_v1)
+            enhanced_v2 = enhanced_summary(comparison_v2)
+
+            st.caption(
+                f"Solar input: {solar_light_percentage}% of the "
+                f"{SOLAR_IRRADIANCE:.0f} W/m² reference irradiance "
+                f"({solar['available_irradiance']:.0f} W/m² available). "
+                f"With {SOLAR_ROOF_AREA:.1f} m² of roof PV at "
+                f"{SOLAR_PANEL_EFFICIENCY*100:.0f}% panel efficiency and "
+                f"{SOLAR_CHARGE_EFFICIENCY*100:.0f}% charging efficiency, "
+                f"this gives {solar['solar_power']:.0f} W during the event."
+            )
+
+            if braking_mode:
+                st.caption(
+                    f"Regenerative braking is active for this braking event "
+                    f"using the fixed {REGEN_BRAKING_EFFICIENCY*100:.1f}% "
+                    "wheel-to-battery screening efficiency."
+                )
+            else:
+                st.caption(
+                    "Regenerative braking contribution is 0 kJ because this "
+                    "is not currently a braking/deceleration case."
+                )
+
+            enhanced_table = pd.DataFrame(
+                {
+                    "Version 1 - Always Open": [
+                        kj(enhanced_v1["turbine_generated"]),
+                        kj(enhanced_v1["turbine_penalty"]),
+                        kj(enhanced_v1["regen_energy"]),
+                        kj(enhanced_v1["solar_energy"]),
+                        kj(enhanced_v1["total_electrical_input"]),
+                        kj(enhanced_v1["energy_spent"]),
+                        kj(enhanced_v1["net_after_all_inputs"]),
+                    ],
+                    "Version 2 - Smart Gates": [
+                        kj(enhanced_v2["turbine_generated"]),
+                        kj(enhanced_v2["turbine_penalty"]),
+                        kj(enhanced_v2["regen_energy"]),
+                        kj(enhanced_v2["solar_energy"]),
+                        kj(enhanced_v2["total_electrical_input"]),
+                        kj(enhanced_v2["energy_spent"]),
+                        kj(enhanced_v2["net_after_all_inputs"]),
+                    ],
+                },
+                index=[
+                    "Turbine electricity (kJ)",
+                    "Turbine aerodynamic penalty (kJ)",
+                    "Traction-motor regenerative braking (kJ)",
+                    "Roof-solar external input (kJ)",
+                    "Total electrical energy into battery (kJ)",
+                    "Simplified propulsion energy spent (kJ)",
+                    "Simplified net event energy after all inputs (kJ)",
+                ],
+            )
+
+            st.dataframe(
+                enhanced_table,
+                use_container_width=True,
+            )
+
+            recovery_sources = pd.DataFrame(
+                {
+                    "Version 1 - Always Open": [
+                        kj(enhanced_v1["turbine_generated"]),
+                        kj(enhanced_v1["regen_energy"]),
+                        kj(enhanced_v1["solar_energy"]),
+                    ],
+                    "Version 2 - Smart Gates": [
+                        kj(enhanced_v2["turbine_generated"]),
+                        kj(enhanced_v2["regen_energy"]),
+                        kj(enhanced_v2["solar_energy"]),
+                    ],
+                },
+                index=[
+                    "Front turbine",
+                    "Regenerative braking",
+                    "Solar",
+                ],
+            )
+
+            st.subheader("Electrical energy contributions")
+            st.bar_chart(recovery_sources)
+
+            net_difference = (
+                enhanced_v2["net_after_all_inputs"]
+                - enhanced_v1["net_after_all_inputs"]
+            )
+
+            st.metric(
+                "V2 minus V1 simplified net event energy",
+                f"{kj(net_difference):+.2f} kJ",
+                help=(
+                    "Negative means Version 2 requires less simplified net "
+                    "event energy than Version 1 in this comparison; positive "
+                    "means more."
+                ),
+            )
+
+
+# ==================================================
 # LIMITATIONS
 # ==================================================
 
-with tab4:
+with limitations_tab:
     st.header("Model limitations")
 
     st.markdown(
         """
 - **Vehicle aerodynamic geometry is simplified.** The code uses a fixed 2.2 m² vehicle frontal area because frontal area cannot be inferred reliably from vehicle mass or turbine diameter. The current `Cd = 1 / (L/D)` relationship is retained only as a screening proxy; a true lift-to-drag ratio does not uniquely determine a road vehicle's drag coefficient.
-- **Turbine aerodynamic penalty is a conservative proxy.** The model currently treats the free-stream kinetic power through the turbine swept area as the turbine aerodynamic penalty. It does not solve actuator-disk induction, thrust coefficient, duct blockage, blade aerodynamics, wake interaction, or installation losses.
+- **Turbine aerodynamics still use a simplified actuator-disk model.** The code now links a fixed rotor power coefficient to a thrust coefficient using classical 1-D momentum theory, then uses turbine thrust × vehicle speed as the aerodynamic power penalty. It still does not model duct blockage, blade geometry, detailed wake interaction, installation losses, or a speed-dependent Cp/Ct map.
 - **Turbine efficiency is constant with speed and load.** Real turbines and generators have efficiency maps, cut-in torque/speed, bearing losses, electrical controller losses, and power limits. Because the present model uses a constant efficiency, generated energy / turbine penalty is essentially fixed whenever the gate is open.
 - **Gate motion is instantaneous and free.** Gate opening time, actuator power, gate drag while moving, sealing losses, and control-system latency are ignored.
 - **Driving events are synthetic screening events, not certification cycles.** Each event uses a linear speed-vs-time trace over the same 20 s duration. Distance is calculated from that trace. Real WLTP/EPA-style cycles contain many acceleration, cruise, deceleration, and idle segments.
 - **Rolling resistance is omitted.** Tyre deformation, road texture, tyre pressure, bearing friction, and speed-dependent rolling resistance are not included.
 - **Propulsion-system losses are omitted.** Traction motor, inverter, gearbox, battery discharge/charge efficiency, battery temperature, state of charge, and auxiliary electrical loads are not modeled.
-- **Normal EV regenerative braking is omitted.** The braking analysis only studies electricity from the front turbine; it does not add electricity recovered through the traction motor.
+- **Traction-motor regenerative braking is simplified and only added in the optional Additional Vehicle Efficiency tab when braking/deceleration is selected.** It uses one fixed wheel-to-battery efficiency and has no motor/generator power limit, battery state-of-charge limit, tyre-adhesion limit, brake blending, low-speed cutoff, or temperature dependence.
+- **Solar remains a simplified screening model.** The optional Additional Vehicle Efficiency tab assumes a fixed 2.0 m² roof area and fixed panel/charging efficiencies. The user-selected 0–100% solar-light value linearly scales a 1000 W/m² reference irradiance; shading, roof curvature, detailed sun angle, panel temperature, parking orientation and daily/seasonal yield are not modeled.
 - **Ambient wind is omitted.** Relative airflow is assumed to equal vehicle speed. Headwind, tailwind, crosswind, gusts, and traffic wakes are ignored.
 - **Air properties are fixed.** Air density is held at 1.225 kg/m³; altitude, temperature, humidity, and weather are ignored.
 - **Road gradient is constant over an event.** Changes in slope within the event are not modeled.
@@ -604,4 +836,3 @@ with tab4:
 - **The model assumes one turbine and no flow coupling.** Multiple turbines, duct networks, recirculation, pressure recovery, and interference between the turbine and the vehicle body are not modeled.
         """
     )
-
