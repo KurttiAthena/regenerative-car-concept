@@ -125,29 +125,20 @@ regenerative-car-concept/
 
 ## Main assumptions and limitations
 
-Some important simplifications are:
+The current model includes several important simplifications:
 
 - fixed vehicle frontal area
 - simplified relationship between L/D and vehicle drag coefficient
 - one-dimensional actuator-disk turbine model
 - constant turbine efficiency and aerodynamic coefficients
-- no turbine \(C_p/C_t\) map versus operating point
-- no detailed blade or duct geometry
-- no CFD interaction between the turbine and vehicle body
-- instantaneous, lossless gate operation
-- no gate actuator energy consumption
+- no detailed blade, duct or turbine-body aerodynamic interaction
+- instantaneous and lossless gate operation
 - synthetic linear speed profiles
 - no rolling resistance
-- no complete electric powertrain efficiency model
-- no battery state-of-charge or thermal model
-- no motor/generator power limits
-- fixed air density
-- no ambient wind
-- no detailed tyre or road model
-- no vehicle pitch, suspension or downforce effects
-- no interaction between multiple turbines
+- simplified electric powertrain representation
+- fixed air density and no ambient wind
 
-These are outlined in the **Limitations** tab of in the application.
+Further limitations are described in the application's **Limitations** tab.
 
 ---
 
