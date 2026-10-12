@@ -21,7 +21,7 @@ def _make_event(start_speed, end_speed, condition):
 
 DIRT_ROAD_CYCLE = [
     _make_event(0, 30, "acceleration"),
-    _make_event(20, 30, "cruise"),
+    _make_event(10, 20, "cruise"),
 ]
 
 CITY_CYCLE = [
