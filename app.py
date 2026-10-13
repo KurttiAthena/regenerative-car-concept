@@ -35,6 +35,12 @@ def apply_preset():
 
 st.session_state.setdefault("ld", 8.0)
 st.subheader(t("inputs"))
+cycle_map = {
+    "dirt": DIRT_ROAD_CYCLE,
+    "city": CITY_CYCLE,
+    "highway": HIGHWAY_CYCLE,
+    "motorway": MOTORWAY_CYCLE,
+}
 left, right = st.columns(2)
 with left:
     st.markdown("**" + t("vehicle") + "**")
@@ -64,8 +70,49 @@ with right:
     distance_km = st.number_input(t("distance"), min_value=.001, max_value=10000.0,
                                   value=1.0, step=.1, format="%.3f", key="distance")
     closed = st.checkbox(t("closed"), key="closed")
-    opening = st.slider(t("gate"), 0.0, 251.0, 80.0, step=.1, disabled=closed,
-                        key="opening", help=t("gate_help"))
+
+    if source == "cycle":
+        gate_event = get_cycle_event(
+            cycle_map[cycle_id],
+            condition,
+            braking_mode,
+        )
+        gate_min = float(min(
+            gate_event["start_speed"],
+            gate_event["end_speed"],
+        ))
+        gate_max = float(max(
+            gate_event["start_speed"],
+            gate_event["end_speed"],
+        ))
+    else:
+        gate_min = 0.0
+        gate_max = 251.0
+
+    # Clamp the previous selection before creating the widget.
+    # This prevents an old motorway threshold surviving a switch to Dirt Road.
+    previous_opening = float(st.session_state.get("opening", 80.0))
+    st.session_state["opening"] = min(
+        max(previous_opening, gate_min),
+        gate_max,
+    )
+
+    opening = st.slider(
+        t("gate"),
+        min_value=gate_min,
+        max_value=gate_max,
+        step=0.1,
+        disabled=closed,
+        key="opening",
+        help=t("gate_help"),
+    )
+
+    if source == "cycle":
+        st.caption(t(
+            "gate_range",
+            low=gate_min,
+            high=gate_max,
+        ))
     st.caption(t("distance_note"))
 st.caption(t("preset_note"))
 with st.expander(t("preset_sources")):
@@ -78,11 +125,18 @@ with st.expander(t("preset_sources")):
 extra = st.checkbox(t("extra"), key="extra")
 sunlight = st.slider(t("sun"), 0, 100, 100, disabled=not extra, key="sun", help=t("sun_help"))
 st.caption(t("extra_note"))
+normalize_braking = st.checkbox(
+    t("normalize_braking"),
+    key="normalize_braking",
+    disabled=not (extra and braking_mode),
+)
+
+if extra and braking_mode:
+    st.caption(t("normalize_braking_help"))
 
 # Canonical submitted configuration uses internal IDs, never translated labels.
 # Inactive controls are excluded so they cannot change a study's driving event.
-cycle_map = {"dirt": DIRT_ROAD_CYCLE, "city": CITY_CYCLE,
-             "highway": HIGHWAY_CYCLE, "motorway": MOTORWAY_CYCLE}
+
 if source == "manual":
     initial, final = float(speed), 0.0 if braking_mode else float(speed)
 else:
@@ -93,7 +147,10 @@ config = dict(mass=mass, ld=ld, diameter=diameter, efficiency=eff,
               condition=condition if source == "cycle" else None,
               initial=initial, final=final, grade=grade, distance_m=distance_km*1000,
               opening=opening if not closed else None, closed=closed,
-              braking=braking_mode, extra=extra, sunlight=sunlight if extra else 0)
+              braking=braking_mode, extra=extra, sunlight=sunlight if extra else 0, 
+              normalize_braking=bool(
+                 normalize_braking and extra and braking_mode
+              ))
 
 
 def analyse(c):
@@ -285,9 +342,17 @@ with tabs[1]:
         st.caption(t("closed"))
     guide()
 with tabs[2]:
+    # Direct Comparison uses the generation-concentration recommendation.
+    # At constant speed there is no distinct recommendation: use always open.
+    comparison_v1 = v1
+    comparison_v2 = (
+        study["recommended"]
+        if study["recommended"] is not None
+        else v1
+    )
     keys = ["generation", "penalty", "aero", "spent"]
     vals = [[r["recovered_energy"]/3600, -r["turbine_drag_energy"]/3600,
-             -r["total_aerodynamic_energy"]/3600, -r["total_energy_spent"]/3600] for r in (v1, v2)]
+             -r["total_aerodynamic_energy"]/3600, -r["total_energy_spent"]/3600] for r in (comparison_v1, comparison_v2)]
     fig, ax = plt.subplots(figsize=(10, 4))
     positions = np.arange(len(keys))
     for i, (version, colour) in enumerate([(t("v1"), BLUE), (t("v2"), PURPLE)]):
@@ -297,24 +362,105 @@ with tabs[2]:
     ax.set_ylabel(t("energy")); ax.legend(); fig.tight_layout()
     st.pyplot(fig, width="stretch"); plt.close(fig)
     st.caption(t("compare_note"))
+    if study["best"] is not None:
+        st.caption(t(
+            "comparison_threshold",
+            speed=study["best"]["opening_speed"],
+        ))
+    else:
+        st.caption(t("comparison_no_threshold"))
     if np.allclose(vals[0], vals[1]):
         st.caption(t("equal_note"))
     st.subheader(t("compare_lines"))
-    plot_lines(v1["trace"]["time_edges_s"], [
-        (t("v1"), cumulative(v1, v1["trace"]["net_event_power"]), BLUE, "-"),
-        (t("v2"), cumulative(v2, v2["trace"]["net_event_power"]), PURPLE, "--"),
-    ], ylabel="energy")
-    st.subheader(t("results")); table(result_rows([v1, v2]), [t("v1"), t("v2")]); guide()
+    plot_lines(
+        comparison_v1["trace"]["time_edges_s"],
+        [
+            (
+                t("v1"),
+                cumulative(
+                    comparison_v1,
+                    comparison_v1["trace"]["net_event_power"],
+                ),
+                BLUE,
+                "-",
+            ),
+            (
+                t("v2"),
+                cumulative(
+                    comparison_v2,
+                    comparison_v2["trace"]["net_event_power"],
+                ),
+                PURPLE,
+                "--",
+            ),
+        ],
+        ylabel="energy",
+    )
+    st.subheader(t("results"))
+    table(
+        result_rows([comparison_v1, comparison_v2]),
+        [t("v1"), t("v2")],
+    )
+    guide()
 
 if c["extra"]:
     with tabs[3]:
-        best_version = "v2" if v2["net_event_energy_after_recovery"] < v1["net_event_energy_after_recovery"] - 1e-9 else "v1"
-        chosen = study[best_version]
+                # Changes here affect only the alternative-methods tab.
+        alternative_study = study
+
+        if c["normalize_braking"]:
+            reference_duration = 20.0
+            average_speed_ms = (
+                c["initial"] + c["final"]
+            ) / 7.2
+            reference_distance = (
+                average_speed_ms * reference_duration
+            )
+
+            alternative_config = dict(c)
+            alternative_config["distance_m"] = reference_distance
+            alternative_study = analyse(alternative_config)
+
+            st.info(t(
+                "normalized_reference",
+                distance=reference_distance / 1000.0,
+                duration=reference_duration,
+            ))
+
+        alternative_v1 = alternative_study["v1"]
+        alternative_v2 = alternative_study["v2"]
+
+        best_version = (
+            "v2"
+            if alternative_v2["net_event_energy_after_recovery"]
+            < alternative_v1["net_event_energy_after_recovery"] - 1e-9
+            else "v1"
+        )
+
+        chosen = alternative_study[best_version]
         z = chosen["trace"]
-        solar = calculate_solar_energy(chosen["duration_s"], c["sunlight"])
-        regen_standalone = study["baseline"]["braking_energy_to_dissipate"] * REGEN_BRAKING_EFFICIENCY
-        regen_combined_power = z["braking_power"] * REGEN_BRAKING_EFFICIENCY
-        regen_combined = float(np.sum(regen_combined_power) * z["dt_s"])
+
+        solar = calculate_solar_energy(
+            chosen["duration_s"],
+            c["sunlight"],
+        )
+
+        # Explicit braking selection is required in this tab.
+        if c["braking"]:
+            regen_standalone = (
+                alternative_study["baseline"]["braking_energy_to_dissipate"]
+                * REGEN_BRAKING_EFFICIENCY
+            )
+            regen_combined_power = (
+                z["braking_power"] * REGEN_BRAKING_EFFICIENCY
+            )
+        else:
+            regen_standalone = 0.0
+            regen_combined_power = np.zeros_like(z["braking_power"])
+
+        regen_combined = float(
+            np.sum(regen_combined_power) * z["dt_s"]
+        )
         st.caption(t("best_note", version=t(best_version)))
         fig, ax = plt.subplots(figsize=(10, 3.5))
         ax.bar([textwrap.fill(t("generation"), 26), t("regen"), t("solar")],
@@ -323,6 +469,8 @@ if c["extra"]:
         ax.set_ylabel(t("energy")); ax.set_title(t("methods")); fig.tight_layout()
         st.pyplot(fig, width="stretch"); plt.close(fig)
         st.caption(t("standalone_note"))
+        if not c["braking"]:
+            st.info(t("enable_braking_note"))
         st.subheader(t("combined"))
         show = st.checkbox(t("combined_toggle"), key="view_combined")
         solar_power = np.full_like(z["time_s"], solar["solar_power"])
