@@ -19,11 +19,43 @@ from aerodynamic_presets import PRESETS, PRESET_MAP, SOURCES
 from translations import translate, GUIDE, LIMITATIONS
 
 st.set_page_config(page_title="Regenerative Car / Coche regenerativo", page_icon="🚗", layout="wide")
-language = st.radio("Language / Idioma", ["en", "es"], horizontal=True,
-                    format_func=lambda x: "English" if x == "en" else "Español", key="language")
+# Read the stable language key before the heading so the title is first.
+language = st.session_state.get("language", "en")
 t = lambda key, **kw: translate(key, language, **kw)
-st.title("🚗 " + t("title"))
-st.caption(t("intro"))
+st.markdown("""
+<style>
+.st-key-hero_title h1 {
+    text-align: center;
+    font-size: clamp(2.2rem, 4vw, 3.5rem);
+    line-height: 1.15;
+}
+.st-key-language_controls [role="radiogroup"] {
+    justify-content: center;
+}
+:is(.st-key-vehicle_inputs, .st-key-driving_inputs, .st-key-alternative_inputs)[data-testid="stVerticalBlock"],
+:is(.st-key-vehicle_inputs, .st-key-driving_inputs, .st-key-alternative_inputs) [data-testid="stVerticalBlock"] {
+    gap: 1.4rem;
+}
+.st-key-run button {
+    min-height: 3.7rem;
+    border-radius: .7rem;
+}
+.st-key-run button p {
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+}
+#braking-deceleration {
+    scroll-margin-top: 5rem;
+}
+</style>
+""", unsafe_allow_html=True)
+with st.container(key="hero_title"):
+    st.title("🚗 " + t("title"))
+with st.container(key="language_controls"):
+    language = st.radio("Language / Idioma", ["en", "es"], horizontal=True,
+                        format_func=lambda x: "English" if x == "en" else "Español",
+                        key="language", label_visibility="collapsed")
 GREEN, RED, BLUE, PURPLE, AMBER = "#16834b", "#c53535", "#2463bc", "#8356b5", "#b57812"
 
 
@@ -34,105 +66,108 @@ def apply_preset():
 
 
 st.session_state.setdefault("ld", 8.0)
-st.subheader(t("inputs"))
 cycle_map = {
     "dirt": DIRT_ROAD_CYCLE,
     "city": CITY_CYCLE,
     "highway": HIGHWAY_CYCLE,
     "motorway": MOTORWAY_CYCLE,
 }
-left, right = st.columns(2)
-with left:
-    st.markdown("**" + t("vehicle") + "**")
-    mass = st.slider(t("mass"), 500, 3000, 2000, key="mass")
-    preset = st.selectbox(t("preset"), [x[0] for x in PRESETS], key="preset",
-                          format_func=lambda x: PRESET_MAP[x][1 + (language == "es")],
-                          on_change=apply_preset)
-    ld = st.slider(t("ld"), 0.5, 50.0, step=.01, format="%.3f", key="ld", help=t("ld_help"))
-    st.caption(f"{t('cd')}: {1 / ld:.4f}")
-    diameter = st.slider(t("diameter"), .1, 2.0, .5, step=.01, key="diameter")
-    eff_mode = st.radio(t("eff_mode"), ["realistic", "ideal"],
-                        format_func=t, key="eff_mode", horizontal=True)
-    eff_percent = st.slider(t("eff"), 0, 100, 40, disabled=eff_mode == "realistic", key="eff_percent")
-    eff = get_efficiency("Realistic" if eff_mode == "realistic" else "Idealised slider", eff_percent)
-    if eff_mode == "ideal":
-        st.caption(t("ideal_note"))
-with right:
-    st.markdown("**" + t("drive") + "**")
-    source = st.radio(t("drive_source"), ["manual", "cycle"], format_func=t, key="source", horizontal=True)
-    speed = st.slider(t("speed"), 0, 250, 100, disabled=source == "cycle", key="speed")
-    cycle_id = st.selectbox(t("scenario"), ["dirt", "city", "highway", "motorway"],
-                           format_func=t, disabled=source == "manual", key="cycle_id")
-    condition = st.selectbox(t("condition"), ["acceleration", "cruise"],
-                            format_func=t, disabled=source == "manual", key="condition")
-    braking_mode = st.checkbox(t("braking"), key="braking")
-    grade = st.slider(t("grade"), -20, 20, 0, key="grade")
-    distance_km = st.number_input(t("distance"), min_value=.001, max_value=10000.0,
-                                  value=1.0, step=.1, format="%.3f", key="distance")
-    closed = st.checkbox(t("closed"), key="closed")
+with st.container(border=True, key="analysis_inputs"):
+    st.subheader(t("inputs"))
+    left, right = st.columns(2)
+    with left:
+        with st.container(border=True, key="vehicle_inputs"):
+            st.markdown(
+                f'<h3 style="margin:0 0 .3rem">{html.escape(t("vehicle"))}</h3>'
+                f'<p style="font-size:.85rem;opacity:.7;margin:0">'
+                f'{html.escape(t("vehicle_subtitle"))}</p>',
+                unsafe_allow_html=True,
+            )
+            mass = st.slider(t("mass"), 500, 3000, 2000, key="mass")
+            preset = st.selectbox(t("preset"), [x[0] for x in PRESETS], key="preset",
+                                  format_func=lambda x: PRESET_MAP[x][1 + (language == "es")],
+                                  on_change=apply_preset, help=t("preset_help"))
+            ld = st.slider(t("ld"), 0.5, 50.0, step=.01, format="%.3f", key="ld",
+                           help=t("ld_help", cd=1 / st.session_state["ld"]))
+            diameter = st.slider(t("diameter"), .1, 2.0, .5, step=.01, key="diameter")
+            eff_mode = st.radio(t("eff_mode"), ["realistic", "ideal"],
+                                format_func=t, key="eff_mode", horizontal=True)
+            eff_percent = st.slider(t("eff"), 0, 100, 40, disabled=eff_mode == "realistic", key="eff_percent")
+            eff = get_efficiency("Realistic" if eff_mode == "realistic" else "Idealised slider", eff_percent)
+            if eff_mode == "ideal":
+                st.caption(t("ideal_note"))
+    with right:
+        with st.container(border=True, key="driving_inputs"):
+            st.markdown(
+                f'<h3 style="margin:0 0 .3rem">{html.escape(t("drive"))}</h3>'
+                f'<p style="font-size:.85rem;opacity:.7;margin:0">'
+                f'{html.escape(t("drive_subtitle"))}</p>',
+                unsafe_allow_html=True,
+            )
+            source = st.radio(t("drive_source"), ["manual", "cycle"], format_func=t,
+                              key="source", horizontal=True, help=t("drive_source_help"))
+            speed = st.slider(t("speed"), 0, 250, 100, disabled=source == "cycle", key="speed")
+            cycle_id = st.selectbox(t("scenario"), ["dirt", "city", "highway", "motorway"],
+                                   format_func=t, disabled=source == "manual", key="cycle_id")
+            condition = st.selectbox(t("condition"), ["acceleration", "cruise"],
+                                    format_func=t, disabled=source == "manual", key="condition")
+            # The normal-text link in the alternatives box targets this anchor.
+            st.markdown('<span id="braking-deceleration"></span>', unsafe_allow_html=True)
+            braking_mode = st.checkbox(t("braking"), key="braking", help=t("braking_help"))
+            grade = st.slider(t("grade"), -20, 20, 0, key="grade")
+            distance_km = st.number_input(t("distance"), min_value=.001, max_value=10000.0,
+                                          value=1.0, step=.1, format="%.3f", key="distance",
+                                          help=t("distance_help"))
+            closed = st.checkbox(t("closed"), key="closed")
 
-    if source == "cycle":
-        gate_event = get_cycle_event(
-            cycle_map[cycle_id],
-            condition,
-            braking_mode,
+            if source == "cycle":
+                gate_event = get_cycle_event(
+                    cycle_map[cycle_id],
+                    condition,
+                    braking_mode,
+                )
+                gate_min = float(min(
+                    gate_event["start_speed"],
+                    gate_event["end_speed"],
+                ))
+                gate_max = float(max(
+                    gate_event["start_speed"],
+                    gate_event["end_speed"],
+                ))
+            else:
+                gate_min = 0.0
+                gate_max = 251.0
+
+            # Clamp the previous selection before creating the widget.
+            # This prevents an old motorway threshold surviving a switch to Dirt Road.
+            previous_opening = float(st.session_state.get("opening", 80.0))
+            st.session_state["opening"] = min(
+                max(previous_opening, gate_min),
+                gate_max,
+            )
+            gate_help = t("gate_help")
+            if source == "cycle":
+                gate_help += "\n\n" + t("gate_range", low=gate_min, high=gate_max)
+            opening = st.slider(
+                t("gate"),
+                min_value=gate_min,
+                max_value=gate_max,
+                step=0.1,
+                disabled=closed,
+                key="opening",
+                help=gate_help,
+            )
+    with st.container(border=True, key="alternative_inputs"):
+        st.subheader(t("alternatives"))
+        extra = st.checkbox(t("extra"), key="extra")
+        sunlight = st.slider(t("sun"), 0, 100, 100, disabled=not extra, key="sun", help=t("sun_help"))
+        st.markdown(t("braking_link"))
+        normalize_braking = st.checkbox(
+            t("normalize_braking"),
+            key="normalize_braking",
+            disabled=not (extra and braking_mode),
+            help=t("normalize_braking_help"),
         )
-        gate_min = float(min(
-            gate_event["start_speed"],
-            gate_event["end_speed"],
-        ))
-        gate_max = float(max(
-            gate_event["start_speed"],
-            gate_event["end_speed"],
-        ))
-    else:
-        gate_min = 0.0
-        gate_max = 251.0
-
-    # Clamp the previous selection before creating the widget.
-    # This prevents an old motorway threshold surviving a switch to Dirt Road.
-    previous_opening = float(st.session_state.get("opening", 80.0))
-    st.session_state["opening"] = min(
-        max(previous_opening, gate_min),
-        gate_max,
-    )
-
-    opening = st.slider(
-        t("gate"),
-        min_value=gate_min,
-        max_value=gate_max,
-        step=0.1,
-        disabled=closed,
-        key="opening",
-        help=t("gate_help"),
-    )
-
-    if source == "cycle":
-        st.caption(t(
-            "gate_range",
-            low=gate_min,
-            high=gate_max,
-        ))
-    st.caption(t("distance_note"))
-st.caption(t("preset_note"))
-with st.expander(t("preset_sources")):
-    st.caption(t("f1_note"))
-    st.dataframe(pd.DataFrame({t("preset"): [r[1 + (language == "es")] for r in PRESETS[1:]],
-                              t("cd"): [r[3] for r in PRESETS[1:]],
-                              t("ld"): [1/r[3] for r in PRESETS[1:]]}), hide_index=True)
-    for name, url in SOURCES:
-        st.markdown(f"[{name.rsplit(' / ', 1)[language == 'es'] if ' / ' in name else name}]({url})")
-extra = st.checkbox(t("extra"), key="extra")
-sunlight = st.slider(t("sun"), 0, 100, 100, disabled=not extra, key="sun", help=t("sun_help"))
-st.caption(t("extra_note"))
-normalize_braking = st.checkbox(
-    t("normalize_braking"),
-    key="normalize_braking",
-    disabled=not (extra and braking_mode),
-)
-
-if extra and braking_mode:
-    st.caption(t("normalize_braking_help"))
 
 # Canonical submitted configuration uses internal IDs, never translated labels.
 # Inactive controls are excluded so they cannot change a study's driving event.
@@ -167,7 +202,7 @@ def analyse(c):
                 recommended=recommended, best=best, scan=scan)
 
 
-if st.button(t("run"), type="primary", key="run"):
+if st.button(t("run"), type="primary", key="run", width="stretch"):
     try:
         st.session_state.study = analyse(config)
         # Reset display switches after a new study, not on language changes.
@@ -187,14 +222,10 @@ if config != study["config"]:
     st.warning(t("pending"))
 c = study["config"]
 v1, v2 = study["v1"], study["v2"]
-drive_name = t("manual") if c["source"] == "manual" else f"{t(c['cycle'])} / {t(c['condition'])}"
-st.caption(f"{t('snapshot')}: {drive_name} · {c['initial']:.1f} → {c['final']:.1f} km/h · "
-           f"{c['distance_m']/1000:.3f} km · {t('duration')}: {v1['duration_s']:.1f} s · "
-           f"{t('grade')}: {c['grade']:+.0f}%")
-st.caption(t("sign_note"))
 
 
 def plot_lines(x, series, ylabel="power", xlabel="time", suffix="", markers=None):
+    st.markdown(t("chart_help"), help=t("sign_note"))
     fig, ax = plt.subplots(figsize=(10, 3.5))
     for label, values, colour, style in series:
         ax.plot(x, values, label=textwrap.fill(label, 48), color=colour, linestyle=style, linewidth=2)
@@ -276,7 +307,7 @@ def version_graphs(result, prefix):
         lines.append((t("net_turbine"), z["turbine_net_power"], BLUE, "--"))
     plot_lines(x, lines)
     st.caption(t("g1_note"))
-    st.subheader(t("g2"))
+    st.subheader(t("g2"), help=t("sign_note"))
     # Signed stacked areas show composition, unlike a pie chart which hides time.
     fig, ax = plt.subplots(figsize=(10, 3.5))
     ax.stackplot(x, -z["vehicle_drag_power"], -z["turbine_drag_power"],
@@ -360,6 +391,7 @@ with tabs[2]:
     ax.axhline(0, color="#666", linewidth=.8)
     ax.set_xticks(positions, [textwrap.fill(t(k), 24) for k in keys]); ax.tick_params(axis="x", labelsize=8)
     ax.set_ylabel(t("energy")); ax.legend(); fig.tight_layout()
+    st.markdown(t("chart_help"), help=t("sign_note"))
     st.pyplot(fig, width="stretch"); plt.close(fig)
     st.caption(t("compare_note"))
     if study["best"] is not None:
@@ -467,6 +499,7 @@ if c["extra"]:
                [chosen["recovered_energy"]/3600, regen_standalone/3600, solar["solar_energy"]/3600],
                color=[GREEN, BLUE, AMBER])
         ax.set_ylabel(t("energy")); ax.set_title(t("methods")); fig.tight_layout()
+        st.markdown(t("chart_help"), help=t("sign_note"))
         st.pyplot(fig, width="stretch"); plt.close(fig)
         st.caption(t("standalone_note"))
         if not c["braking"]:
@@ -502,3 +535,11 @@ if c["extra"]:
 with tabs[-1]:
     st.header(t("limitations"))
     st.markdown(LIMITATIONS[language == "es"])
+
+    with st.expander(t("preset_sources")):
+        st.caption(t("f1_note"))
+        st.dataframe(pd.DataFrame({t("preset"): [r[1 + (language == "es")] for r in PRESETS[1:]],
+                                  t("cd"): [r[3] for r in PRESETS[1:]],
+                                  t("ld"): [1/r[3] for r in PRESETS[1:]]}), hide_index=True)
+        for name, url in SOURCES:
+            st.markdown(f"[{name.rsplit(' / ', 1)[language == 'es'] if ' / ' in name else name}]({url})")
