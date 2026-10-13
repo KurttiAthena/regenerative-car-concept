@@ -79,7 +79,7 @@ hero_css = """
     background-image: url("data:image/png;base64,IMAGE_DATA");
     background-repeat: no-repeat;
     background-position: center;
-    background-size: contain;
+    background-size: 150% auto;
     opacity: 0.20;
     pointer-events: none;
     z-index: 0;
