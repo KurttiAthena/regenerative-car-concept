@@ -18,7 +18,7 @@ from driving_cycles import (DIRT_ROAD_CYCLE, CITY_CYCLE, HIGHWAY_CYCLE,
 from aerodynamic_presets import PRESETS, PRESET_MAP, SOURCES
 from translations import translate, GUIDE, LIMITATIONS
 
-st.set_page_config(page_title="Regenerative Car / Coche regenerativo", page_icon="🚗", layout="wide")
+st.set_page_config(page_title="Regenerative Car / Coche regenerativo", page_icon="𖣘", layout="wide")
 # Read the stable language key before the heading so the title is first.
 language = st.session_state.get("language", "en")
 t = lambda key, **kw: translate(key, language, **kw)
@@ -50,12 +50,89 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
-with st.container(key="hero_title"):
-    st.title("🚗 " + t("title"))
-with st.container(key="language_controls"):
-    language = st.radio("Language / Idioma", ["en", "es"], horizontal=True,
-                        format_func=lambda x: "English" if x == "en" else "Español",
-                        key="language", label_visibility="collapsed")
+
+# --- HEADER: car sketch, title, language selector ---
+
+import base64
+from pathlib import Path
+
+image_path = Path(__file__).parent / "assets" / "turbine_car.png"
+image_base64 = base64.b64encode(image_path.read_bytes()).decode()
+
+hero_css = """
+<style>
+.st-key-hero_header {
+    position: relative;
+    isolation: isolate;
+    min-height: 260px;
+    padding: 3.5rem 0 4rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* Car sketch as a background watermark */
+.st-key-hero_header::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/png;base64,IMAGE_DATA");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    opacity: 0.20;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Keep actual content above the sketch */
+.st-key-hero_header > div {
+    position: relative;
+    z-index: 1;
+}
+
+/* Center title */
+.st-key-hero_title h1 {
+    text-align: center;
+    font-size: clamp(2.2rem, 4vw, 3.5rem);
+    line-height: 1.15;
+}
+
+/* Center entire radio widget */
+.st-key-language_controls [data-testid="stRadio"] {
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Center language choices inside the widget */
+.st-key-language_controls [role="radiogroup"] {
+    justify-content: center;
+}
+</style>
+"""
+
+st.markdown(
+    hero_css.replace("IMAGE_DATA", image_base64),
+    unsafe_allow_html=True
+)
+
+with st.container(key="hero_header"):
+    with st.container(key="hero_title"):
+        st.title(t("title"))
+
+    with st.container(key="language_controls"):
+        language = st.radio(
+            "Language / Idioma",
+            ["en", "es"],
+            horizontal=True,
+            format_func=lambda x: (
+                "English" if x == "en" else "Español"
+            ),
+            key="language",
+            label_visibility="collapsed"
+        )
+
 GREEN, RED, BLUE, PURPLE, AMBER = "#16834b", "#c53535", "#2463bc", "#8356b5", "#b57812"
 
 
