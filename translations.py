@@ -41,7 +41,13 @@ TEXT = {
 "extra": ("Include alternative energy methods (separate tab only)", "Incluir métodos energéticos alternativos (solo en su pestaña)"),
 "sun": ("Solar light available (%)", "Luz solar disponible (%)"),
 "sun_help": ("Scales the reference solar irradiance from no usable sunlight to 1000 W/m² peak/STC-style irradiance.", "Escala la irradiancia solar de referencia desde ausencia de luz útil hasta 1000 W/m², valor de pico tipo STC."),
-"extra_note": ("Solar and traction-motor regeneration are only credited in the alternative-methods tab. Braking regeneration applies whenever the selected event requires braking, including downhill conditions.", "La energía solar y la regeneración del motor de tracción solo se contabilizan en la pestaña de métodos alternativos. La regeneración de frenada se aplica cuando el evento exige frenar, incluidas las bajadas."),
+"extra_note": (
+    "Solar and traction-motor regeneration are credited only in the "
+    "alternative-methods tab. Select braking/deceleration to include braking recovery.",
+    "La energía solar y la regeneración del motor de tracción solo se contabilizan "
+    "en la pestaña de métodos alternativos. Selecciona frenada/desaceleración "
+    "para incluir recuperación de frenada.",
+),
 "run": ("Run Analysis", "Ejecutar análisis"),
 "pending": ("Inputs have changed. These results still describe your last submitted analysis. Press Run Analysis to update them.", "Los datos han cambiado. Estos resultados siguen describiendo el último análisis ejecutado. Pulsa Ejecutar análisis para actualizarlos."),
 "ready": ("Choose your inputs above and press Run Analysis to display results.", "Elige los datos arriba y pulsa Ejecutar análisis para ver los resultados."),
@@ -94,7 +100,12 @@ TEXT = {
 "threshold_result": ("Generation-concentration threshold: {speed:.2f} km/h. Retains {retained:.1f}% of always-open electricity with gates open for {exposure:.1f}% of the drive.", "Umbral de concentración de generación: {speed:.2f} km/h. Conserva el {retained:.1f}% de la electricidad de siempre abierta con las compuertas abiertas durante el {exposure:.1f}% del recorrido."),
 "closed_reference": ("Always-closed reference: 0 Wh turbine electricity, 0 Wh turbine drag; propulsion demand {spent:.2f} Wh. This reference is not the default recommendation.", "Referencia siempre cerrada: 0 Wh de electricidad y 0 Wh de resistencia de turbina; demanda de propulsión de {spent:.2f} Wh. Esta referencia no es la recomendación predeterminada."),
 "chosen_gate": ("Selected vehicle opening speed", "Velocidad de apertura elegida"),
-"compare_note": ("Both bars use the same submitted event. Version 2 uses your selected gate policy, never the scan recommendation.", "Ambas barras usan el mismo evento ejecutado. La versión 2 usa tu política de compuertas, nunca la recomendación del barrido."),
+"compare_note": (
+    "Both versions use the same submitted drive. Version 2 uses the "
+    "scanned generation-concentration threshold in this comparison.",
+    "Ambas versiones usan el mismo recorrido ejecutado. La versión 2 usa "
+    "el umbral de concentración de generación del barrido en esta comparación.",
+),
 "equal_note": ("These results match because your gate policy exposes the turbine for the same portions of the drive, or generation/drag is negligible.", "Los resultados coinciden porque la política de compuertas expone la turbina durante los mismos tramos, o la generación/resistencia es despreciable."),
 "compare_lines": ("Cumulative net energy balance on the same drive", "Balance energético neto acumulado en el mismo recorrido"),
 "best_note": ("Turbine source: {version}, selected for the lower net event energy requirement among your two submitted configurations. Scan results are not substituted. Ties use Version 1.", "Origen de la turbina: {version}, elegido por su menor requerimiento energético neto entre las dos configuraciones ejecutadas. No se sustituyen por resultados del barrido. Los empates usan la versión 1."),
@@ -114,6 +125,49 @@ TEXT = {
 "standalone_regen": ("Standalone braking electricity (no turbine)", "Electricidad de frenada independiente (sin turbina)"),
 "na": ("N/A", "No aplicable"),
 "sign_note": ("Green: returned energy. Red: energy spent/lost. Net lines use return minus demand: positive is a return, negative is consumption. Colours accompany explicit signs and labels.", "Verde: energía retornada. Rojo: energía gastada/perdida. Las líneas netas usan retorno menos demanda: positivo es retorno y negativo es consumo. Los colores acompañan signos y etiquetas explícitos."),
+"gate_range": (
+    "This scenario uses {low:.1f}–{high:.1f} km/h. "
+    "The opening threshold is restricted to that range.",
+    "Este escenario usa {low:.1f}–{high:.1f} km/h. "
+    "El umbral de apertura se limita a ese intervalo.",
+),
+
+"normalize_braking": (
+    "Use a normalized braking event for the alternative-methods comparison",
+    "Usar una frenada normalizada en la comparación de métodos alternativos",
+),
+
+"normalize_braking_help": (
+    "Uses the same initial/final speeds over 20 seconds. "
+    "Turbine, braking and solar are recalculated together in that tab only.",
+    "Usa las mismas velocidades inicial y final durante 20 segundos. "
+    "Turbina, frenada y solar se recalculan juntas solo en esa pestaña.",
+),
+
+"normalized_reference": (
+    "Alternative-methods reference: {duration:.0f} seconds, "
+    "{distance:.3f} km. Other tabs retain your entered distance.",
+    "Referencia de métodos alternativos: {duration:.0f} segundos, "
+    "{distance:.3f} km. Las otras pestañas conservan la distancia introducida.",
+),
+
+"enable_braking_note": (
+    "Select 'Analyse braking / deceleration' to include regenerative braking.",
+    "Selecciona 'Analizar frenada / desaceleración' para incluir "
+    "la frenada regenerativa.",
+),
+
+"comparison_threshold": (
+    "Version 2 opening threshold used here: {speed:.2f} km/h.",
+    "Umbral de apertura de la versión 2 usado aquí: {speed:.2f} km/h.",
+),
+
+"comparison_no_threshold": (
+    "No distinct concentration threshold exists for this event. "
+    "The comparison uses always-open operation as its reference.",
+    "No existe un umbral diferenciado de concentración para este evento. "
+    "La comparación usa funcionamiento siempre abierto como referencia.",
+)
 }
 
 GUIDE = (
