@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 
 AIR_DENSITY = 1.225
@@ -150,11 +151,10 @@ def calculate_turbine_drag_energy(
     steps=200,
 ):
     """
-    Integrate the current simplified turbine aerodynamic-penalty proxy.
+    Integrate the fixed actuator-disk thrust × vehicle-speed penalty.
 
-    The model treats the free-stream kinetic power through the turbine swept
-    area as the aerodynamic penalty proxy. This is intentionally conservative
-    and is listed as a model limitation in the UI.
+    The free-stream kinetic flux is multiplied by Ct, consistent with
+    calculate_energy and simulate_speed_event.
     """
 
     total_energy = 0.0
@@ -346,259 +346,171 @@ def should_open_gate(speed_kmh, opening_speed_kmh):
     return speed_kmh >= opening_speed_kmh
 
 
+def event_duration_for_distance(initial_speed, final_speed, distance_m):
+    """Stretch one linear speed-time event; do not repeat kinetic changes."""
+    if not all(math.isfinite(float(x)) for x in (initial_speed, final_speed, distance_m)):
+        raise ValueError("Inputs must be finite")
+    if initial_speed < 0 or final_speed < 0 or distance_m <= 0:
+        raise ValueError("Speeds must be non-negative and distance positive")
+    average_speed = (initial_speed + final_speed) / 7.2
+    if average_speed <= 0:
+        raise ValueError("Positive distance requires a non-zero average speed")
+    return distance_m / average_speed
+
+
+def percentage(numerator, denominator):
+    """Undefined fractions stay undefined (None), rather than reporting 0%."""
+    return 100.0 * numerator / denominator if denominator > 1e-12 else None
+
+
 def simulate_speed_event(
-    initial_speed,
-    final_speed,
-    duration,
-    mass,
-    LD_ratio,
-    turbine_diameter,
-    efficiency,
-    gate_mode="always_open",
-    opening_speed=0.0,
-    grade=0,
-    steps=200,
+    initial_speed, final_speed, duration, mass, LD_ratio,
+    turbine_diameter, efficiency, gate_mode="always_open", opening_speed=0.0,
+    grade=0, steps=1200,
 ):
+    """Integrate signed wheel power before separating propulsion and braking.
+
+    Returned trace powers are midpoint values over equal intervals. Cumulative
+    energy plots must use the interval edges, starting explicitly at zero.
+    Electrical recovery is a simplified cross-domain credit, not a full battery
+    model. All coefficients and the 2.2 m² frontal area retain the original scope.
     """
-    Integrate one simplified event using a linear speed-vs-time trace.
-
-    The same function is used for acceleration, slight-speed-change cruise,
-    and braking. For smart gates, the turbine is open only while vehicle speed
-    is at or above `opening_speed`.
-    """
-
-    if duration <= 0:
-        raise ValueError("duration must be greater than zero")
-
+    values = (initial_speed, final_speed, duration, mass, LD_ratio,
+              turbine_diameter, efficiency, opening_speed, grade)
+    if not all(math.isfinite(float(x)) for x in values):
+        raise ValueError("Inputs must be finite")
+    if duration <= 0 or mass <= 0 or LD_ratio <= 0 or turbine_diameter <= 0:
+        raise ValueError("Duration, mass, L/D proxy and diameter must be positive")
+    if min(initial_speed, final_speed, opening_speed) < 0 or not 0 <= efficiency <= 1:
+        raise ValueError("Invalid speed or efficiency")
+    if steps < 2 or int(steps) != steps:
+        raise ValueError("At least two integer integration steps are required")
     dt = duration / steps
+    edges = np.linspace(0.0, duration, steps + 1)
+    time = (edges[:-1] + edges[1:]) / 2
+    speed = initial_speed + (final_speed - initial_speed) * time / duration
+    velocity = speed / 3.6
+    acceleration = (final_speed - initial_speed) / (3.6 * duration)
+    if gate_mode == "always_open":
+        active = np.ones(steps, dtype=bool)
+    elif gate_mode == "smart":
+        active = speed >= opening_speed
+    elif gate_mode == "closed":
+        active = np.zeros(steps, dtype=bool)
+    else:
+        raise ValueError("Unknown gate mode")
+    area = math.pi * (turbine_diameter / 2) ** 2
+    available = .5 * AIR_DENSITY * area * velocity ** 3
+    generated = available * efficiency * active
+    turbine = available * TURBINE_THRUST_COEFFICIENT * active
+    vehicle = .5 * AIR_DENSITY * REFERENCE_FRONTAL_AREA / LD_ratio * velocity ** 3
+    gravity = mass * GRAVITY * math.sin(math.atan(grade / 100)) * velocity
+    kinetic = mass * velocity * acceleration
+    required = vehicle + turbine + gravity + kinetic
+    propulsion = np.maximum(required, 0)
+    braking = np.maximum(-required, 0)
+    trace = dict(time_s=time, time_edges_s=edges, speed_kmh=speed,
+                 dt_s=dt, gate_open=active, recovered_power=generated,
+                 turbine_drag_power=turbine, vehicle_drag_power=vehicle,
+                 total_aerodynamic_power=vehicle + turbine,
+                 gravity_power=gravity, kinetic_power=kinetic,
+                 required_wheel_power=required, propulsion_power=propulsion,
+                 braking_power=braking,
+                 turbine_net_power=generated - turbine,
+                 net_event_power=generated - propulsion)
+    energy = lambda power: float(np.sum(power) * dt)
+    recovered_energy, turbine_energy = energy(generated), energy(turbine)
+    spent, brake_energy = energy(propulsion), energy(braking)
+    kinetic_change = calculate_kinetic_energy_change(mass, initial_speed, final_speed)
+    distance = float(np.sum(velocity) * dt)
+    total_aero = energy(vehicle + turbine)
+    net = spent - recovered_energy
+    ratio = percentage(recovered_energy, spent)
+    penalty_ratio = percentage(recovered_energy, turbine_energy)
+    result = dict(initial_speed=initial_speed, final_speed=final_speed,
+                  duration_s=duration, distance_m=distance,
+                  open_time_s=float(np.sum(active) * dt),
+                  kinetic_energy_change=kinetic_change,
+                  vehicle_drag_energy=energy(vehicle), gravity_energy=energy(gravity),
+                  turbine_drag_energy=turbine_energy, recovered_energy=recovered_energy,
+                  total_aerodynamic_energy=total_aero,
+                  required_wheel_energy=energy(required), total_energy_spent=spent,
+                  braking_energy_to_dissipate=brake_energy,
+                  net_event_energy_after_recovery=net, net_battery_energy=net,
+                  recovery_vs_total_spent_pct=ratio,
+                  recovery_vs_turbine_penalty_pct=penalty_ratio,
+                  recovery_vs_total_aero_pct=percentage(recovered_energy, total_aero),
+                  recovery_vs_kinetic_loss_pct=percentage(recovered_energy, max(-kinetic_change, 0)),
+                  recovered_wh_per_km=recovered_energy / 3600 / (distance / 1000) if distance > 0 else None,
+                  net_event_wh_per_km_after_recovery=net / 3600 / (distance / 1000) if distance > 0 else None,
+                  trace=trace)
+    result["net_battery_wh_per_km"] = result["net_event_wh_per_km_after_recovery"]
+    return result
 
-    vehicle_drag_energy = 0.0
-    gravity_energy = 0.0
-    turbine_drag_energy = 0.0
-    recovered_energy = 0.0
-    distance = 0.0
-    open_time = 0.0
 
-    for i in range(steps):
-        fraction = (i + 0.5) / steps
-        speed = initial_speed + (final_speed - initial_speed) * fraction
-        V = speed / 3.6
+def generation_concentration_speed(initial_speed, final_speed):
+    """Threshold where instantaneous output equals mean always-open output.
 
-        if gate_mode == "always_open":
-            turbine_active = True
-        elif gate_mode == "smart":
-            turbine_active = should_open_gate(speed, opening_speed)
-        else:
-            turbine_active = False
-
-        result = calculate_energy(
-            mass,
-            speed,
-            LD_ratio,
-            turbine_diameter,
-            efficiency,
-            turbine_active,
-            grade,
-        )
-
-        distance += V * dt
-        vehicle_drag_energy += result["vehicle_drag_power"] * dt
-        gravity_energy += result["gravity_power"] * dt
-        turbine_drag_energy += result["turbine_drag_power"] * dt
-        recovered_energy += result["recovered_power"] * dt
-
-        if turbine_active:
-            open_time += dt
-
-    kinetic_energy_change = calculate_kinetic_energy_change(
-        mass,
-        initial_speed,
-        final_speed,
-    )
-
-    # Required wheel work for the prescribed event before crediting generated
-    # electricity. It can be negative during a braking/downhill event.
-    required_wheel_energy = (
-        kinetic_energy_change
-        + vehicle_drag_energy
-        + gravity_energy
-        + turbine_drag_energy
-    )
-
-    total_energy_spent = max(required_wheel_energy, 0.0)
-    braking_energy_to_dissipate = max(-required_wheel_energy, 0.0)
-    net_event_energy_after_recovery = total_energy_spent - recovered_energy
-
-    recovery_vs_total_spent_pct = (
-        recovered_energy / total_energy_spent * 100.0
-        if total_energy_spent > 0
-        else 0.0
-    )
-
-    recovery_vs_turbine_penalty_pct = (
-        recovered_energy / turbine_drag_energy * 100.0
-        if turbine_drag_energy > 0
-        else 0.0
-    )
-
-    kinetic_energy_lost = max(-kinetic_energy_change, 0.0)
-    recovery_vs_kinetic_loss_pct = (
-        recovered_energy / kinetic_energy_lost * 100.0
-        if kinetic_energy_lost > 0
-        else 0.0
-    )
-
-    distance_km = distance / 1000.0
-    recovered_wh_per_km = (
-        recovered_energy / 3600.0 / distance_km
-        if distance_km > 0
-        else 0.0
-    )
-
-    net_event_wh_per_km_after_recovery = (
-        net_event_energy_after_recovery / 3600.0 / distance_km
-        if distance_km > 0
-        else 0.0
-    )
-
-    return {
-        "initial_speed": initial_speed,
-        "final_speed": final_speed,
-        "duration_s": duration,
-        "distance_m": distance,
-        "open_time_s": open_time,
-        "kinetic_energy_change": kinetic_energy_change,
-        "vehicle_drag_energy": vehicle_drag_energy,
-        "gravity_energy": gravity_energy,
-        "turbine_drag_energy": turbine_drag_energy,
-        "recovered_energy": recovered_energy,
-        "required_wheel_energy": required_wheel_energy,
-        "total_energy_spent": total_energy_spent,
-        "braking_energy_to_dissipate": braking_energy_to_dissipate,
-        "net_event_energy_after_recovery": net_event_energy_after_recovery,
-
-        # Compatibility alias. This is a simplified cross-domain screening
-        # balance, not full battery energy consumption.
-        "net_battery_energy": net_event_energy_after_recovery,
-        "recovery_vs_total_spent_pct": recovery_vs_total_spent_pct,
-        "recovery_vs_turbine_penalty_pct": recovery_vs_turbine_penalty_pct,
-        "recovery_vs_kinetic_loss_pct": recovery_vs_kinetic_loss_pct,
-        "recovered_wh_per_km": recovered_wh_per_km,
-        "net_event_wh_per_km_after_recovery": net_event_wh_per_km_after_recovery,
-        "net_battery_wh_per_km": net_event_wh_per_km_after_recovery,
-    }
+    For P=K*D²*v³ and a linear speed trace, v*=mean(v³)^(1/3).
+    Maximizes retained electricity fraction minus exposure time fraction.
+    This is an explicitly chosen, scale-free screening objective; it does NOT
+    optimize net energy or improve generation / turbine drag. Diameter and
+    efficiency cancel. No cut-in torque, wattage target or rating is invented.
+    """
+    lo, hi = sorted((initial_speed, final_speed))
+    return ((hi ** 3 + hi ** 2 * lo + hi * lo ** 2 + lo ** 3) / 4) ** (1 / 3)
 
 
 def scan_gate_opening_speeds(
-    initial_speed,
-    final_speed,
-    duration,
-    mass,
-    LD_ratio,
-    turbine_diameter,
-    efficiency,
-    grade=0,
+    initial_speed, final_speed, duration, mass, LD_ratio,
+    turbine_diameter, efficiency, grade=0,
 ):
-    """
-    Evaluate every integer gate threshold on the same complete speed event.
+    maximum = max(initial_speed, final_speed)
+    candidates = sorted(set([0.0, float(maximum),
+        generation_concentration_speed(initial_speed, final_speed)] +
+        [float(x) for x in range(int(math.ceil(maximum)) + 1)]))
+    reference = simulate_speed_event(initial_speed, final_speed, duration, mass,
+        LD_ratio, turbine_diameter, efficiency, grade=grade)
+    rows = []
+    for threshold in candidates + [None]:
+        result = simulate_speed_event(initial_speed, final_speed, duration, mass,
+            LD_ratio, turbine_diameter, efficiency,
+            gate_mode="closed" if threshold is None else "smart",
+            opening_speed=threshold or 0, grade=grade)
+        retained = (result["recovered_energy"] / reference["recovered_energy"]
+                    if reference["recovered_energy"] > 1e-12 else 0.0)
+        exposure = result["open_time_s"] / duration
+        row = {key: result[key] for key in (
+            "recovered_energy", "turbine_drag_energy", "total_energy_spent",
+            "net_event_energy_after_recovery", "recovery_vs_total_spent_pct",
+            "recovery_vs_turbine_penalty_pct", "recovery_vs_total_aero_pct",
+            "recovery_vs_kinetic_loss_pct", "open_time_s")}
+        row.update(opening_speed=threshold, policy="closed" if threshold is None else "threshold",
+                   retained_generation_pct=retained * 100,
+                   exposure_time_pct=exposure * 100,
+                   concentration_score=retained - exposure)
+        rows.append(row)
+    return rows
 
-    Keeping the event fixed is important: changing the event endpoint for each
-    candidate would make the thresholds incomparable. Braking events therefore
-    remain full prescribed events while the gate simply closes below each
-    candidate threshold.
-    """
-
-    low_speed = int(math.ceil(min(initial_speed, final_speed)))
-    high_speed = int(math.floor(max(initial_speed, final_speed)))
-
-    if high_speed < low_speed:
-        return []
-
-    scan = []
-
-    for opening_speed in range(low_speed, high_speed + 1):
-        result = simulate_speed_event(
-            initial_speed,
-            final_speed,
-            duration,
-            mass,
-            LD_ratio,
-            turbine_diameter,
-            efficiency,
-            gate_mode="smart",
-            opening_speed=opening_speed,
-            grade=grade,
-        )
-
-        scan.append({
-            "opening_speed": opening_speed,
-            "recovered_energy": result["recovered_energy"],
-            "turbine_drag_energy": result["turbine_drag_energy"],
-            "total_energy_spent": result["total_energy_spent"],
-            "net_event_energy_after_recovery": result[
-                "net_event_energy_after_recovery"
-            ],
-            "recovery_vs_total_spent_pct": result[
-                "recovery_vs_total_spent_pct"
-            ],
-            "recovery_vs_turbine_penalty_pct": result[
-                "recovery_vs_turbine_penalty_pct"
-            ],
-            "recovery_vs_kinetic_loss_pct": result[
-                "recovery_vs_kinetic_loss_pct"
-            ],
-        })
-
-    return scan
 
 def find_optimal_gate_speed(
-    initial_speed,
-    final_speed,
-    duration,
-    mass,
-    LD_ratio,
-    turbine_diameter,
-    efficiency,
-    grade=0,
+    initial_speed, final_speed, duration, mass, LD_ratio,
+    turbine_diameter, efficiency, grade=0,
 ):
+    """Return a generation-concentration recommendation, not a net-energy optimum.
+
+    Always-closed remains a reference candidate; it is not the default objective.
+    A constant-speed or zero-output case has no distinguished useful threshold.
     """
-    Find the threshold that maximizes recovered energy / total energy spent.
-
-    If several thresholds have the same percentage, prefer the one that
-    recovers more absolute electrical energy.
-    """
-
-    scan = scan_gate_opening_speeds(
-        initial_speed,
-        final_speed,
-        duration,
-        mass,
-        LD_ratio,
-        turbine_diameter,
-        efficiency,
-        grade,
-    )
-
-    if not scan:
-        return None, []
-
-    if final_speed < initial_speed:
-        objective_key = "recovery_vs_kinetic_loss_pct"
-        objective_label = "recovered energy / kinetic energy lost"
-    else:
-        objective_key = "recovery_vs_total_spent_pct"
-        objective_label = "recovered energy / total energy spent"
-
-    best = max(
-        scan,
-        key=lambda row: (
-            row[objective_key],
-            row["recovered_energy"],
-        ),
-    )
-
-    best = dict(best)
-    best["objective_key"] = objective_key
-    best["objective_label"] = objective_label
-
+    scan = scan_gate_opening_speeds(initial_speed, final_speed, duration, mass,
+                                  LD_ratio, turbine_diameter, efficiency, grade)
+    if abs(final_speed - initial_speed) < 1e-9 or efficiency <= 0 or max(initial_speed, final_speed) == 0:
+        return None, scan
+    theoretical = generation_concentration_speed(initial_speed, final_speed)
+    # Use the analytical optimum to avoid claiming an integer scan artefact is
+    # a unique speed. Its integrated metrics use the same trace as all cases.
+    best = dict(min((row for row in scan if row["policy"] == "threshold"),
+                    key=lambda row: abs(row["opening_speed"] - theoretical)))
+    best["objective_key"] = "concentration_score"
+    best["objective_label"] = "retained generation fraction minus exposure time fraction"
     return best, scan
