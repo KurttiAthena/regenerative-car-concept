@@ -108,7 +108,9 @@ hero_css = """
 /* Center language choices inside the widget */
 .st-key-language_controls [role="radiogroup"] {
     justify-content: center;
+    flex-wrap: nowrap;
 }
+
 </style>
 """
 
@@ -122,16 +124,17 @@ with st.container(key="hero_header"):
         st.title(t("title"))
 
     with st.container(key="language_controls"):
-        language = st.radio(
-            "Language / Idioma",
-            ["en", "es"],
-            horizontal=True,
-            format_func=lambda x: (
-                "English" if x == "en" else "Español"
-            ),
-            key="language",
-            label_visibility="collapsed"
-        )
+        left, center, right = st.columns([2, 1, 2])
+
+        with center:
+            language = st.radio(
+                "Language / Idioma",
+                ["en", "es"],
+                horizontal=True,
+                format_func=lambda x: "English" if x == "en" else "Español",
+                key="language",
+                label_visibility="collapsed",
+            )
 
 GREEN, RED, BLUE, PURPLE, AMBER = "#16834b", "#c53535", "#2463bc", "#8356b5", "#b57812"
 
