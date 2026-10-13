@@ -1,13 +1,22 @@
 """Editable English / Spanish copy. Keys are stable across language changes."""
 TEXT = {
+'vehicle_subtitle': ('These inputs define the vehicle’s physical properties.', 'Estos datos definen las propiedades físicas del vehículo.'),
+'drive_subtitle': ('These inputs define how the car moves during one event.', 'Estos datos definen cómo se mueve el coche durante un único evento.'),
+'preset_help': ('Choose an illustrative car shape to set the L/D ratio below and its equivalent drag coefficient, Cd = 1 / L/D. These are examples, not standard vehicle values. Choose Custom to set L/D manually. Values and references are at the bottom of the Model Limitations tab (tab 4 or 5).', 'Elige una forma ilustrativa del coche para fijar la relación L/D inferior y su coeficiente de resistencia equivalente, Cx = 1 / L/D. Son ejemplos, no valores estándar de vehículos. Elige Personalizado para introducir L/D manualmente. Los valores y referencias están al final de Limitaciones del modelo (pestaña 4 o 5).'),
+'distance_help': ('Distance stretches one selected event. Duration follows from its average speed; it does not repeat accelerations or stops.', 'La distancia alarga un único evento seleccionado. La duración se obtiene de su velocidad media; no repite aceleraciones ni paradas.'),
+'drive_source_help': ('Choose either a manual speed or a predefined scenario. Manual mode uses constant speed unless braking/deceleration is selected.', 'Elige una velocidad manual o un escenario predefinido. El modo manual usa velocidad constante salvo que se seleccione frenada/desaceleración.'),
+'braking_help': ('In manual mode, the car slows linearly from the entered speed to a stop. For a predefined scenario, braking reverses the selected event’s initial and final speeds.', 'En modo manual, el coche reduce su velocidad linealmente desde la introducida hasta detenerse. En un escenario predefinido, la frenada invierte las velocidades inicial y final del evento seleccionado.'),
+'braking_link': ('Select [braking/deceleration](#braking-deceleration) to include braking recovery.', 'Selecciona [frenada/desaceleración](#braking-deceleration) para incluir recuperación de frenada.'),
+'chart_help': ('Chart key', 'Clave del gráfico'),
+
 "title": ("Regenerative Car Simulator", "Simulador de coche regenerativo"),
 "intro": ("Compare turbine electricity with added drag, total aerodynamic losses and propulsion demand on one shared drive.", "Compara la electricidad de la turbina con su resistencia añadida, las pérdidas aerodinámicas totales y la demanda de propulsión en un mismo recorrido."),
 "inputs": ("Set up your analysis", "Configura tu análisis"),
 "vehicle": ("Vehicle", "Vehículo"),
 "mass": ("Vehicle mass (kg)", "Masa del vehículo (kg)"),
-"preset": ("Illustrative aerodynamic shape", "Forma aerodinámica ilustrativa"),
-"ld": ("L/D ratio — model proxy", "Relación L/D — aproximación del modelo"),
-"ld_help": ("This model uses Cd = 1 / L/D. This slider is not a measured physical lift-to-drag ratio. Presets set it once; you can then adjust it.", "Este modelo usa Cx = 1 / L/D. El deslizador no representa una relación física medida de sustentación/resistencia. Los preajustes fijan su valor y después puedes modificarlo."),
+'preset': ('Theoretical car shape', 'Forma teórica del coche'),
+'ld': ('L/D ratio', 'Relación L/D'),
+'ld_help': ('Values approximated for this model. Equivalent model Cd: {cd:.4f} (Cd = 1 / L/D).', 'Valores aproximados para este modelo. Cx equivalente del modelo: {cd:.4f} (Cx = 1 / L/D).'),
 "preset_note": ("Presets are conceptual starting points, not standard values. Only the aerodynamic proxy changes: mass and turbine diameter stay as entered. Every shape uses the same 2.2 m² reference frontal area, even trucks and imaginary airfoil bodies.", "Los preajustes son puntos de partida conceptuales, no valores estándar. Solo cambia la aproximación aerodinámica: se mantienen la masa y el diámetro introducidos. Todas las formas usan el mismo área frontal de referencia de 2,2 m², incluidos camiones y carrocerías imaginarias de perfil alar."),
 "preset_sources": ("Preset values and references", "Valores de los preajustes y referencias"),
 "f1_note": ("F1 downforce/drag is not 1/Cd. The F1 preset is conceptual; the sports-car preset uses a 2015 Porsche 911 Cd reference. Airfoil and fuselage presets are invented installed-body proxies, not published NACA or aircraft coefficients.", "La relación carga aerodinámica/resistencia de F1 no es 1/Cx. El preajuste F1 es conceptual; el deportivo usa una referencia de Cx de un Porsche 911 de 2015. Los preajustes alar y fuselaje son aproximaciones conceptuales de carrocerías instaladas, no coeficientes publicados de NACA o aviones."),
@@ -17,7 +26,7 @@ TEXT = {
 "realistic": ("Realistic", "Realista"),
 "ideal": ("Idealised slider", "Deslizador idealizado"),
 "eff": ("Wind-to-electric energy transfer (%)", "Transferencia de energía del aire a electricidad (%)"),
-"ideal_note": ("The idealised slider changes electrical generation only. Turbine drag keeps its fixed coefficient. High settings may exceed the model's aerodynamic extraction limit and must be read as hypothetical sensitivity cases.", "El deslizador idealizado solo cambia la generación eléctrica. La resistencia de la turbina conserva su coeficiente fijo. Los valores altos pueden superar el límite de extracción aerodinámica del modelo y deben interpretarse como casos hipotéticos de sensibilidad."),
+'ideal_note': ("Higher percentages may exceed the model's aerodynamic extraction limit and should be treated as hypothetical sensitivity cases.", 'Los porcentajes altos pueden superar el límite de extracción aerodinámica del modelo y deben interpretarse como casos hipotéticos de sensibilidad.'),
 "drive": ("Driving event", "Evento de conducción"),
 "drive_source": ("Choose how to define vehicle speed", "Elige cómo definir la velocidad del vehículo"),
 "manual": ("Manual vehicle speed", "Velocidad manual del vehículo"),
@@ -38,7 +47,7 @@ TEXT = {
 "gate": ("Vehicle speed at which gates open (km/h)", "Velocidad del vehículo a la que se abren las compuertas (km/h)"),
 "gate_help": ("Gates are open at or above this vehicle speed and closed below it. This is not their mechanical opening speed.", "Las compuertas están abiertas a partir de esta velocidad del vehículo y cerradas por debajo. No es la velocidad mecánica de apertura."),
 "closed": ("Keep Version 2 gates closed throughout", "Mantener cerradas las compuertas de la versión 2 durante todo el recorrido"),
-"extra": ("Include alternative energy methods (separate tab only)", "Incluir métodos energéticos alternativos (solo en su pestaña)"),
+'extra': ('Include alternative energy methods?', '¿Incluir métodos energéticos alternativos?'),
 "sun": ("Solar light available (%)", "Luz solar disponible (%)"),
 "sun_help": ("Scales the reference solar irradiance from no usable sunlight to 1000 W/m² peak/STC-style irradiance.", "Escala la irradiancia solar de referencia desde ausencia de luz útil hasta 1000 W/m², valor de pico tipo STC."),
 "extra_note": (
@@ -48,7 +57,7 @@ TEXT = {
     "en la pestaña de métodos alternativos. Selecciona frenada/desaceleración "
     "para incluir recuperación de frenada.",
 ),
-"run": ("Run Analysis", "Ejecutar análisis"),
+'run': ('RUN ANALYSIS', 'EJECUTAR ANÁLISIS'),
 "pending": ("Inputs have changed. These results still describe your last submitted analysis. Press Run Analysis to update them.", "Los datos han cambiado. Estos resultados siguen describiendo el último análisis ejecutado. Pulsa Ejecutar análisis para actualizarlos."),
 "ready": ("Choose your inputs above and press Run Analysis to display results.", "Elige los datos arriba y pulsa Ejecutar análisis para ver los resultados."),
 "invalid": ("A positive distance requires a non-zero vehicle speed. Check the driving inputs.", "Una distancia positiva requiere una velocidad del vehículo distinta de cero. Revisa los datos de conducción."),
@@ -132,10 +141,7 @@ TEXT = {
     "El umbral de apertura se limita a ese intervalo.",
 ),
 
-"normalize_braking": (
-    "Use a normalized braking event for the alternative-methods comparison",
-    "Usar una frenada normalizada en la comparación de métodos alternativos",
-),
+'normalize_braking': ('Use normalized braking event', 'Usar frenada normalizada'),
 
 "normalize_braking_help": (
     "Uses the same initial/final speeds over 20 seconds. "
