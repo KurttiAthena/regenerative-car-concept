@@ -163,3 +163,18 @@ This repository is an exploratory engineering model.
 It does not demonstrate that a vehicle-mounted turbine can provide a net energy benefit, nor should its results be interpreted as validation of the underlying vehicle concept.
 
 Any conclusions about real-world feasibility would require substantially higher-fidelity aerodynamic, mechanical, electrical and vehicle-level modelling, followed by experimental validation.
+
+---
+
+## Research references 
+Latest reviewed: 13 October 2026
+
+- [Porsche: 2015 911 Carrera, Cd 0.29](https://newsroom.porsche.com/en/christophorus/porsche-carrera-911s-technique-turbo-engine-11471.html)
+- [JLR: 2015 Range Rover Sport SVR, Cd 0.38](https://media.jlr.com/range-rover/en-us/news/2014/08/2015-range-rover-sport-svr)
+- [Chalmers thesis: Model 3 SR+ parameters, table 21, Cd 0.23](https://odr.chalmers.se/bitstreams/376be6c2-2e1c-46a6-816e-b4e46d8b1dea/download)
+- [NASA: coefficient reference area and flow-condition dependence](https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/drag-coefficient/)
+- [Formula 1: downforce versus drag](https://www.formula1.com/en/latest/article/tech-tuesday-why-aerodynamic-efficiency-now-rules-at-silverstone.65XAovu8LiK7IEqysQ4Sx0)
+
+All remaining numeric preset choices are illustrative design assumptions, not
+values attributed to these sources. The NACA/fuselage proxy values deliberately
+include no claim of verified wheel/turbine installation geometry.
