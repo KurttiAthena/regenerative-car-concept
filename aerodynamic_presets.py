@@ -23,7 +23,7 @@ PRESETS = [
     ("fuselage", "Airplane fuselage on wheels (conceptual)", "Fuselaje de avión con ruedas (conceptual)", 0.15),
     ("airfoil", "NACA 0012-inspired body on wheels (conceptual)", "Carrocería inspirada en NACA 0012 con ruedas (conceptual)", 0.10),
 ]
-PRESET_MAP = {row[0]: row for row in PRESETS}
+PRESET_MAP = {key: row for row in PRESETS for key in row[:3]}
 SOURCES = [
     ("Range Rover Sport SVR (2015): Cd = 0.38 / Cx = 0,38",
      "https://media.jlr.com/range-rover/en-us/news/2014/08/2015-range-rover-sport-svr"),
