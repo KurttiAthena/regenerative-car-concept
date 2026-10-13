@@ -1,4 +1,4 @@
-from car_physics_model import simulate_speed_event
+from car_physics_model import simulate_speed_event, event_duration_for_distance
 
 
 # All synthetic events use the same duration. Distance is derived from the
@@ -72,6 +72,7 @@ def simulate_cycle(
     braking_mode,
     event_type="acceleration",
     opening_speed=0.0,
+    distance_m=None,
 ):
     """Simulate exactly one user-selected event from the chosen driving scenario."""
 
@@ -80,6 +81,11 @@ def simulate_cycle(
         event_type,
         braking_mode,
     )
+
+    if distance_m is not None:
+        event["duration"] = event_duration_for_distance(
+            event["start_speed"], event["end_speed"], distance_m)
+        event["distance"] = distance_m
 
     result = simulate_speed_event(
         event["start_speed"],
