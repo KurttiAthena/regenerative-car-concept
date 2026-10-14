@@ -422,15 +422,15 @@ st.html("""
 <style>
 /* Main tab navigation */
 :is(.stTabs, [data-testid="stTabs"]) [role="tablist"] {
-    gap: 12px !important;
+    gap: 8px !important;
     padding: 10px 0 16px !important;
     overflow-x: auto !important;
 }
 
 /* Individual tab buttons */
 :is(.stTabs, [data-testid="stTabs"]) [role="tab"] {
-    min-height: 65px !important;
-    padding: 14px 22px !important;
+    min-height: 48px !important;
+    padding: 10px 15px !important;
     border-radius: 12px !important;
     border: 1px solid rgba(128,128,128,0.4) !important;
     background: rgba(128,128,128,0.08) !important;
@@ -440,7 +440,7 @@ st.html("""
 /* Force large font on tab labels and nested text */
 :is(.stTabs, [data-testid="stTabs"]) [role="tab"],
 :is(.stTabs, [data-testid="stTabs"]) [role="tab"] * {
-    font-size: 22px !important;
+    font-size: 17px !important;
     font-weight: 700 !important;
     line-height: 1.3 !important;
 }
