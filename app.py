@@ -48,6 +48,56 @@ st.markdown("""
 #braking-deceleration {
     scroll-margin-top: 5rem;
 }
+
+
+/* =======================================
+   OUTPUT TABS - Larger and clearer
+   ======================================= */
+
+/* Space between tabs and allow horizontal scrolling */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 12px;
+    overflow-x: auto;
+    padding: 8px 4px 12px;
+}
+
+/* Each tab looks like a navigation button */
+.stTabs button[data-baseweb="tab"] {
+    font-size: 1.2rem !important;
+    font-weight: 650 !important;
+    padding: 14px 20px !important;
+    min-height: 60px;
+    border: 1px solid rgba(128, 128, 128, 0.35);
+    border-radius: 10px;
+    background: rgba(128, 128, 128, 0.08);
+    white-space: nowrap;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+}
+
+/* Streamlit often renders the label inside a paragraph */
+.stTabs button[data-baseweb="tab"] p {
+    font-size: 1.2rem !important;
+    font-weight: 650 !important;
+}
+
+/* Hover */
+.stTabs button[data-baseweb="tab"]:hover {
+    background: rgba(128, 128, 128, 0.18);
+}
+
+/* Selected tab */
+.stTabs button[data-baseweb="tab"][aria-selected="true"] {
+    background: rgba(36, 99, 188, 0.14);
+    border: 2px solid #2463bc;
+    color: inherit !important;
+}
+
+/* More breathing room before the actual output */
+.stTabs [data-baseweb="tab-panel"] {
+    padding-top: 24px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -154,6 +204,7 @@ cycle_map = {
 }
 with st.container(border=True, key="analysis_inputs"):
     st.subheader(t("inputs"))
+    braking_active = st.session_state.get("braking", False)
     left, right = st.columns(2)
     with left:
         with st.container(border=True, key="vehicle_inputs"):
@@ -176,6 +227,19 @@ with st.container(border=True, key="analysis_inputs"):
             eff = get_efficiency("Realistic" if eff_mode == "realistic" else "Idealised slider", eff_percent)
             if eff_mode == "ideal":
                 st.caption(t("ideal_note"))
+                
+        with st.container(border=True, key="alternative_inputs"):
+            st.subheader(t("alternatives"))
+            extra = st.checkbox(t("extra"), key="extra")
+            sunlight = st.slider(t("sun"), 0, 100, 100, disabled=not extra, key="sun", help=t("sun_help"))
+            st.markdown(t("braking_link"))
+            normalize_braking = st.checkbox(
+                t("normalize_braking"),
+                key="normalize_braking",
+                disabled=not (extra and braking_mode),
+                help=t("normalize_braking_help"),
+            )
+            
     with right:
         with st.container(border=True, key="driving_inputs"):
             st.markdown(
@@ -237,17 +301,7 @@ with st.container(border=True, key="analysis_inputs"):
                 key="opening",
                 help=gate_help,
             )
-    with st.container(border=True, key="alternative_inputs"):
-        st.subheader(t("alternatives"))
-        extra = st.checkbox(t("extra"), key="extra")
-        sunlight = st.slider(t("sun"), 0, 100, 100, disabled=not extra, key="sun", help=t("sun_help"))
-        st.markdown(t("braking_link"))
-        normalize_braking = st.checkbox(
-            t("normalize_braking"),
-            key="normalize_braking",
-            disabled=not (extra and braking_mode),
-            help=t("normalize_braking_help"),
-        )
+
 
 # Canonical submitted configuration uses internal IDs, never translated labels.
 # Inactive controls are excluded so they cannot change a study's driving event.
