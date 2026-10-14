@@ -187,7 +187,7 @@ with st.container(border=True, key="analysis_inputs"):
             normalize_braking = st.checkbox(
                 t("normalize_braking"),
                 key="normalize_braking",
-                disabled=not (extra and braking_mode),
+                disabled=not (extra and braking_active),
                 help=t("normalize_braking_help"),
             )
             
