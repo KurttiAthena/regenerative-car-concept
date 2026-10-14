@@ -49,55 +49,6 @@ st.markdown("""
     scroll-margin-top: 5rem;
 }
 
-
-/* =======================================
-   OUTPUT TABS - Larger and clearer
-   ======================================= */
-
-/* Space between tabs and allow horizontal scrolling */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 12px;
-    overflow-x: auto;
-    padding: 8px 4px 12px;
-}
-
-/* Each tab looks like a navigation button */
-.stTabs button[data-baseweb="tab"] {
-    font-size: 1.2rem !important;
-    font-weight: 650 !important;
-    padding: 14px 20px !important;
-    min-height: 60px;
-    border: 1px solid rgba(128, 128, 128, 0.35);
-    border-radius: 10px;
-    background: rgba(128, 128, 128, 0.08);
-    white-space: nowrap;
-    transition: background 0.2s ease;
-    flex-shrink: 0;
-}
-
-/* Streamlit often renders the label inside a paragraph */
-.stTabs button[data-baseweb="tab"] p {
-    font-size: 1.2rem !important;
-    font-weight: 650 !important;
-}
-
-/* Hover */
-.stTabs button[data-baseweb="tab"]:hover {
-    background: rgba(128, 128, 128, 0.18);
-}
-
-/* Selected tab */
-.stTabs button[data-baseweb="tab"][aria-selected="true"] {
-    background: rgba(36, 99, 188, 0.14);
-    border: 2px solid #2463bc;
-    color: inherit !important;
-}
-
-/* More breathing room before the actual output */
-.stTabs [data-baseweb="tab-panel"] {
-    padding-top: 24px;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -465,11 +416,55 @@ def version_graphs(result, prefix):
                                   ("offset_spent", result["recovery_vs_total_spent_pct"])]))
 
 
+# --- OUTPUT TAB STYLING ---
+
+st.html("""
+<style>
+/* Main tab navigation */
+:is(.stTabs, [data-testid="stTabs"]) [role="tablist"] {
+    gap: 12px !important;
+    padding: 10px 0 16px !important;
+    overflow-x: auto !important;
+}
+
+/* Individual tab buttons */
+:is(.stTabs, [data-testid="stTabs"]) [role="tab"] {
+    min-height: 65px !important;
+    padding: 14px 22px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(128,128,128,0.4) !important;
+    background: rgba(128,128,128,0.08) !important;
+    flex-shrink: 0 !important;
+}
+
+/* Force large font on tab labels and nested text */
+:is(.stTabs, [data-testid="stTabs"]) [role="tab"],
+:is(.stTabs, [data-testid="stTabs"]) [role="tab"] * {
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+}
+
+/* Highlight selected tab */
+:is(.stTabs, [data-testid="stTabs"]) [role="tab"][aria-selected="true"] {
+    background: rgba(36,99,188,0.18) !important;
+    border: 2px solid #2463bc !important;
+}
+
+/* Hover */
+:is(.stTabs, [data-testid="stTabs"]) [role="tab"]:hover {
+    background: rgba(36,99,188,0.10) !important;
+}
+</style>
+""")
+
+
 labels = [t("v1"), t("v2"), t("comparison")]
 if c["extra"]:
     labels.append(t("alternatives"))
 labels.append(t("limitations"))
 tabs = st.tabs(labels)
+
 with tabs[0]:
     version_graphs(v1, "v1")
     st.subheader(t("results")); table(result_rows([v1]), [t("value")]); guide()
