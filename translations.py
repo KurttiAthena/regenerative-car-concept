@@ -14,7 +14,7 @@ TEXT = {
 "inputs": ("Set up your analysis", "Configura tu análisis"),
 "vehicle": ("Vehicle", "Vehículo"),
 "mass": ("Vehicle mass (kg)", "Masa del vehículo (kg)"),
-'preset': ('Theoretical car shape', 'Forma teórica del coche'),
+'preset': ('Theoretical vehicle shape', 'Forma teórica del vehículo'),
 'ld': ('L/D ratio', 'Relación L/D'),
 'ld_help': ('Values approximated for this model. Equivalent model Cd: {cd:.4f} (Cd = 1 / L/D).', 'Valores aproximados para este modelo. Cx equivalente del modelo: {cd:.4f} (Cx = 1 / L/D).'),
 "preset_note": ("Presets are conceptual starting points, not standard values. Only the aerodynamic proxy changes: mass and turbine diameter stay as entered. Every shape uses the same 2.2 m² reference frontal area, even trucks and imaginary airfoil bodies.", "Los preajustes son puntos de partida conceptuales, no valores estándar. Solo cambia la aproximación aerodinámica: se mantienen la masa y el diámetro introducidos. Todas las formas usan el mismo área frontal de referencia de 2,2 m², incluidos camiones y carrocerías imaginarias de perfil alar."),
