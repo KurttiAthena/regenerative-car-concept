@@ -699,16 +699,22 @@ if c["extra"]:
 
         if c["normalize_braking"]:
             reference_duration = 20.0
+
+            alternative_config = dict(c)
+
+            if c["source"] == "manual" and c["initial"] > 0:
+                alternative_config["final"] = 0.0
+
             average_speed_ms = (
-                c["initial"] + c["final"]
+                alternative_config["initial"] + alternative_config["final"]
             ) / 7.2
             reference_distance = (
                 average_speed_ms * reference_duration
             )
 
-            alternative_config = dict(c)
-            alternative_config["distance_m"] = reference_distance
-            alternative_study = analyse(alternative_config)
+            if reference_distance > 0:
+                alternative_config["distance_m"] = reference_distance
+                alternative_study = analyse(alternative_config)
 
 
         alternative_v1 = alternative_study["v1"]
@@ -754,7 +760,11 @@ if c["extra"]:
         st.caption(t("best_note", version=t(best_version)))
         if not c["braking"] and not c["normalize_braking"]:
             st.markdown(t("calculated_braking_instruction"))
-        elif c["normalize_braking"] and c["final"] >= c["initial"]:
+        elif (
+            c["normalize_braking"]
+            and alternative_study["config"]["final"]
+                >= alternative_study["config"]["initial"]
+        ):
             st.markdown(t("normalized_limitation"))
         st.subheader(t("methods"))
         method_values = [chosen["recovered_energy"]/3600, regen_standalone/3600, solar["solar_energy"]/3600]
