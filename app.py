@@ -45,10 +45,21 @@ st.markdown("""
     font-weight: 700;
     letter-spacing: .08em;
 }
-#braking-deceleration {
+#braking-deceleration, [id^="net-v"], [id^="result-v"] {
     scroll-margin-top: 5rem;
 }
 
+[class*="st-key-centered_net_"] [data-testid="stCheckbox"] {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+.st-key-comparison_selection {
+    background: rgba(36,99,188,.08);
+    border: 1px solid rgba(36,99,188,.22);
+    border-radius: .5rem;
+    padding: .6rem .8rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -155,7 +166,6 @@ cycle_map = {
 }
 with st.container(border=True, key="analysis_inputs"):
     st.subheader(t("inputs"))
-    braking_active = st.session_state.get("braking", False)
     left, right = st.columns(2)
     with left:
         with st.container(border=True, key="vehicle_inputs"):
@@ -165,31 +175,34 @@ with st.container(border=True, key="analysis_inputs"):
                 f'{html.escape(t("vehicle_subtitle"))}</p>',
                 unsafe_allow_html=True,
             )
-            mass = st.slider(t("mass"), 500, 3000, 2000, key="mass")
+            mass = st.slider(t("mass"), 500, 3000, 2000, key="mass", help=t("mass_help"))
             preset = st.selectbox(t("preset"), [x[0] for x in PRESETS], key="preset",
                                   format_func=lambda x: PRESET_MAP[x][1 + (language == "es")],
                                   on_change=apply_preset, help=t("preset_help"))
             ld = st.slider(t("ld"), 0.5, 50.0, step=.01, format="%.3f", key="ld",
                            help=t("ld_help", cd=1 / st.session_state["ld"]))
-            diameter = st.slider(t("diameter"), .1, 2.0, .5, step=.01, key="diameter")
+            diameter = st.slider(t("diameter"), .1, 2.0, .5, step=.01, key="diameter", help=t("diameter_help"))
             eff_mode = st.radio(t("eff_mode"), ["realistic", "ideal"],
                                 format_func=t, key="eff_mode", horizontal=True)
-            eff_percent = st.slider(t("eff"), 0, 100, 40, disabled=eff_mode == "realistic", key="eff_percent")
+            eff_percent = st.slider(t("eff"), 0, 100, 40, disabled=eff_mode == "realistic", key="eff_percent", help=t("eff_help"))
             eff = get_efficiency("Realistic" if eff_mode == "realistic" else "Idealised slider", eff_percent)
             if eff_mode == "ideal":
                 st.caption(t("ideal_note"))
                 
         with st.container(border=True, key="alternative_inputs"):
             st.subheader(t("alternatives"))
-            extra = st.checkbox(t("extra"), key="extra")
+            extra = st.checkbox(t("extra"), key="extra", help=t("extra_help"))
             sunlight = st.slider(t("sun"), 0, 100, 100, disabled=not extra, key="sun", help=t("sun_help"))
-            st.markdown(t("braking_link"))
-            normalize_braking = st.checkbox(
-                t("normalize_braking"),
-                key="normalize_braking",
-                disabled=not (extra and braking_active),
-                help=t("normalize_braking_help"),
+            alternative_braking_mode = st.radio(
+                t("braking_mode_label"), ["calculated_braking", "normalized_braking"],
+                format_func=t, key="alternative_braking_mode", disabled=not extra,
+                help=t("braking_mode_help"),
             )
+            normalize_braking = alternative_braking_mode == "normalized_braking"
+            if extra and normalize_braking:
+                st.caption(t("normalize_braking_help"))
+            elif extra and not st.session_state.get("braking", False):
+                st.markdown(t("calculated_braking_instruction"))
             
     with right:
         with st.container(border=True, key="driving_inputs"):
@@ -201,7 +214,7 @@ with st.container(border=True, key="analysis_inputs"):
             )
             source = st.radio(t("drive_source"), ["manual", "cycle"], format_func=t,
                               key="source", horizontal=True, help=t("drive_source_help"))
-            speed = st.slider(t("speed"), 0, 250, 100, disabled=source == "cycle", key="speed")
+            speed = st.slider(t("speed"), 0, 250, 100, disabled=source == "cycle", key="speed", help=t("speed_help"))
             cycle_id = st.selectbox(t("scenario"), ["dirt", "city", "highway", "motorway"],
                                    format_func=t, disabled=source == "manual", key="cycle_id")
             condition = st.selectbox(t("condition"), ["acceleration", "cruise"],
@@ -209,11 +222,11 @@ with st.container(border=True, key="analysis_inputs"):
             # The normal-text link in the alternatives box targets this anchor.
             st.markdown('<span id="braking-deceleration"></span>', unsafe_allow_html=True)
             braking_mode = st.checkbox(t("braking"), key="braking", help=t("braking_help"))
-            grade = st.slider(t("grade"), -20, 20, 0, key="grade")
+            grade = st.slider(t("grade"), -20, 20, 0, key="grade", help=t("grade_help"))
             distance_km = st.number_input(t("distance"), min_value=.001, max_value=10000.0,
                                           value=1.0, step=.1, format="%.3f", key="distance",
                                           help=t("distance_help"))
-            closed = st.checkbox(t("closed"), key="closed")
+            closed = st.checkbox(t("closed"), key="closed", help=t("closed_help"))
 
             if source == "cycle":
                 gate_event = get_cycle_event(
@@ -269,7 +282,7 @@ config = dict(mass=mass, ld=ld, diameter=diameter, efficiency=eff,
               opening=opening if not closed else None, closed=closed,
               braking=braking_mode, extra=extra, sunlight=sunlight if extra else 0, 
               normalize_braking=bool(
-                 normalize_braking and extra and braking_mode
+                 normalize_braking and extra
               ))
 
 
@@ -309,8 +322,9 @@ c = study["config"]
 v1, v2 = study["v1"], study["v2"]
 
 
-def plot_lines(x, series, ylabel="power", xlabel="time", suffix="", markers=None):
-    st.markdown(t("chart_help"), help=t("sign_note"))
+def plot_lines(x, series, ylabel="power", xlabel="time", suffix="", markers=None, chart_help=True):
+    if chart_help:
+        st.markdown(t("chart_help"), help=t("sign_note"))
     fig, ax = plt.subplots(figsize=(10, 3.5))
     for label, values, colour, style in series:
         ax.plot(x, values, label=textwrap.fill(label, 48), color=colour, linestyle=style, linewidth=2)
@@ -343,14 +357,15 @@ def formatted(value, unit="Wh", polarity="neutral"):
     return f'<span style="color:{colour};font-weight:600">{prefix}{number} {html.escape(unit)}</span>'
 
 
-def table(rows, columns):
+def table(rows, columns, anchor_prefix=None):
     # All strings are escaped; only locally produced numeric colour spans are HTML.
     out = ['<table style="width:100%;border-collapse:collapse"><thead><tr>',
            f'<th style="text-align:left;padding:8px">{html.escape(t("quantity"))}</th>']
     out += [f'<th style="text-align:right;padding:8px">{html.escape(col)}</th>' for col in columns]
     out.append('</tr></thead><tbody>')
     for key, values, unit, polarity in rows:
-        out.append(f'<tr style="border-top:1px solid #8884"><td style="padding:8px">{html.escape(t(key))}</td>')
+        anchor = f' id="result-{anchor_prefix}-{key}"' if anchor_prefix else ""
+        out.append(f'<tr{anchor} style="border-top:1px solid #8884"><td style="padding:8px">{html.escape(t(key))}</td>')
         for value in values:
             out.append(f'<td style="padding:8px;text-align:right">{formatted(value, unit, polarity)}</td>')
         out.append('</tr>')
@@ -382,17 +397,55 @@ def guide():
         st.markdown(GUIDE[language == "es"].format(ct=TURBINE_THRUST_COEFFICIENT))
 
 
+def gate_opening_time(result):
+    """Read opening transitions from the simulated gate state, not the input threshold."""
+    active = result["trace"]["gate_open"]
+    transitions = np.flatnonzero(~active[:-1] & active[1:]) + 1
+    return (float(result["trace"]["time_edges_s"][transitions[0]])
+            if len(transitions) else None)
+
+
+def percent_text(value):
+    return f"{value:.2f}%" if value is not None else t("na")
+
+
+def technical_key(kind):
+    with st.expander(t("chart_help"), expanded=False):
+        keys = ["key_generation", "key_turbine_drag", "key_turbine_net"] if kind == "turbine" else [
+            "key_generation", "key_propulsion", "key_drive_net"]
+        st.markdown("\n".join("- " + t(key) for key in keys))
+
+
 def version_graphs(result, prefix):
     z, x = result["trace"], result["trace"]["time_s"]
+    opening_time = gate_opening_time(result)
     st.subheader(t("g1"))
-    show_net = st.checkbox(t("net_toggle"), key=f"view_{prefix}_turbine")
+    explanation = t("g1_intro", anchor=f"net-{prefix}-turbine")
+    if prefix == "v2":
+        if opening_time is not None:
+            explanation += " " + t("gates_transition", time=opening_time)
+        elif z["gate_open"][0]:
+            explanation += " " + t("gates_start")
+        else:
+            explanation += " " + t("gates_closed")
+    st.markdown(explanation)
+    st.markdown(f'<span id="net-{prefix}-turbine"></span>', unsafe_allow_html=True)
+    with st.container(key=f"centered_net_{prefix}_turbine"):
+        show_net = st.checkbox(t("net_toggle"), key=f"view_{prefix}_turbine")
+    technical_key("turbine")
     lines = [(t("generation"), z["recovered_power"], GREEN, "-"),
              (t("penalty"), -z["turbine_drag_power"], RED, "-")]
     if show_net:
         lines.append((t("net_turbine"), z["turbine_net_power"], BLUE, "--"))
-    plot_lines(x, lines)
-    st.caption(t("g1_note"))
-    st.subheader(t("g2"), help=t("sign_note"))
+    plot_lines(x, lines, chart_help=False)
+    st.subheader(t("g2"))
+    share = percentage(result["turbine_drag_energy"], result["total_aerodynamic_energy"])
+    st.markdown(t("g2_intro", share=percent_text(share)))
+    with st.expander(t("chart_help"), expanded=False):
+        st.markdown(t("key_areas"))
+        st.markdown("- " + t("key_vehicle_area", anchor=f"result-{prefix}-baseline")
+                    + "\n- " + t("key_turbine_area", anchor=f"result-{prefix}-penalty"))
+        st.markdown(t("key_accumulation"))
     # Signed stacked areas show composition, unlike a pie chart which hides time.
     fig, ax = plt.subplots(figsize=(10, 3.5))
     ax.stackplot(x, -z["vehicle_drag_power"], -z["turbine_drag_power"],
@@ -401,19 +454,65 @@ def version_graphs(result, prefix):
     ax.set_xlabel(t("time")); ax.set_ylabel(t("power")); ax.grid(alpha=.15)
     ax.legend(loc="upper left", bbox_to_anchor=(0, 1.2), frameon=False, ncol=2, fontsize=8)
     fig.tight_layout(); st.pyplot(fig, width="stretch"); plt.close(fig)
-    share = percentage(result["turbine_drag_energy"], result["total_aerodynamic_energy"])
-    st.caption(f"{t('drag_share')}: {share:.2f}%" if share is not None else f"{t('drag_share')}: {t('na')}")
     st.subheader(t("g3"))
-    show_balance = st.checkbox(t("net_drive_toggle"), key=f"view_{prefix}_drive")
+    explanation = t("g3_intro", aero=percent_text(result["recovery_vs_total_aero_pct"]),
+                    spent=percent_text(result["recovery_vs_total_spent_pct"]))
+    explanation += " " + t("g3_exclusions")
+    if prefix == "v2":
+        explanation += " " + t("gates_propulsion_transition" if opening_time is not None else "gates_propulsion")
+    st.markdown(explanation)
+    st.markdown(f'<span id="net-{prefix}-drive"></span>', unsafe_allow_html=True)
+    with st.container(key=f"centered_net_{prefix}_drive"):
+        show_balance = st.checkbox(t("net_drive_toggle"), key=f"view_{prefix}_drive")
+    technical_key("drive")
     lines = [(t("generation"), z["recovered_power"], GREEN, "-"),
              (t("spent"), -z["propulsion_power"], RED, "-")]
     if show_balance:
         lines.append((t("net_drive"), z["net_event_power"], BLUE, "--"))
-    plot_lines(x, lines)
-    st.caption(t("g3_note"))
-    st.caption(" · ".join(f"{t(key)}: {value:.2f}%" if value is not None else f"{t(key)}: {t('na')}"
-               for key, value in [("offset_aero", result["recovery_vs_total_aero_pct"]),
-                                  ("offset_spent", result["recovery_vs_total_spent_pct"])]))
+    plot_lines(x, lines, chart_help=False)
+
+
+def summary_cards(result, key, accent=BLUE):
+    values = ([result["recovered_energy"] / 3600, result["recovery_vs_total_spent_pct"],
+               result["recovered_wh_per_km"]] if result is not None else [None, None, None])
+    with st.container(key=key):
+        for column, label, value in zip(st.columns(3),
+                ["card_generation", "card_ratio", "card_yield"], values):
+            with column:
+                number = f"{value:.2f}" if value is not None else t("na")
+                st.markdown(
+                    f'<div style="border:1px solid #8884;border-top:3px solid {accent};'
+                    f'border-radius:.5rem;padding:1rem;height:100%;">'
+                    f'<div style="font-size:.85rem;line-height:1.35">{html.escape(t(label))}</div>'
+                    f'<div style="font-size:1.9rem;font-weight:600;margin-top:.5rem">'
+                    f'{html.escape(number)}</div></div>', unsafe_allow_html=True)
+
+
+def threshold_key(absolute=False):
+    keys = ["scan_key_generation", "scan_key_drag"] if absolute else [
+        "scan_key_retained", "scan_key_exposure", "scan_key_score"]
+    if not c["closed"]:
+        keys.append("scan_key_user")
+    if study["best"]:
+        keys.append("scan_key_best_energy" if absolute else "scan_key_best")
+    with st.expander(t("chart_help"), expanded=False):
+        st.markdown("\n".join("- " + t(key) for key in keys))
+
+
+def aerodynamic_pie(result, version):
+    st.subheader(t("pie_title", version=version))
+    total = result["total_aerodynamic_energy"]
+    if total <= 1e-12:
+        st.info(t("pie_unavailable"))
+        return
+    values = [result["vehicle_drag_energy"], result["turbine_drag_energy"]]
+    labels = [textwrap.fill(t(key), 34) + f"\n{percentage(value, total):.2f}%"
+              for key, value in zip(["baseline", "penalty"], values)]
+    fig, ax = plt.subplots(figsize=(6, 4.5))
+    wedges, _ = ax.pie(values, colors=["#bf7777", RED], startangle=90)
+    ax.legend(wedges, labels, loc="lower center", bbox_to_anchor=(.5, -.18),
+              frameon=False, fontsize=9)
+    fig.tight_layout(); st.pyplot(fig, width="stretch"); plt.close(fig)
 
 
 # --- OUTPUT TAB STYLING ---
@@ -467,72 +566,94 @@ tabs = st.tabs(labels)
 
 with tabs[0]:
     version_graphs(v1, "v1")
-    st.subheader(t("results")); table(result_rows([v1]), [t("value")]); guide()
+    st.subheader(t("v1_results"))
+    summary_cards(v1, "summary_v1")
+    st.markdown(t("v1_results_intro"))
+    table(result_rows([v1]), [t("value")], anchor_prefix="v1")
+    guide()
 with tabs[1]:
     version_graphs(v2, "v2")
     st.subheader(t("scan_title"))
+    best = study["best"]
+    st.markdown(t("scan_intro") + " " + (t("scan_recommendation", speed=best["opening_speed"])
+                if best else t("no_threshold")))
+    if best:
+        st.markdown(t("threshold_result", speed=best["opening_speed"],
+                      retained=best["retained_generation_pct"], exposure=best["exposure_time_pct"])
+                    + " " + t("scan_objective"))
+    st.markdown(t("scan_tradeoff"))
+    st.markdown(t("scan_formula"))
+    st.markdown(t("closed_reference", spent=study["baseline"]["total_energy_spent"]/3600))
     rows = [r for r in study["scan"] if r["policy"] != "closed"]
     markers = []
     if not c["closed"]:
         markers.append((t("selected"), c["opening"], PURPLE))
     if study["best"]:
         markers.append((t("recommended"), study["best"]["opening_speed"], AMBER))
+    threshold_key()
     plot_lines([r["opening_speed"] for r in rows], [
         (t("retained"), [r["retained_generation_pct"] for r in rows], GREEN, "-"),
         (t("exposure"), [r["exposure_time_pct"] for r in rows], RED, "-"),
         (t("score"), [r["concentration_score"]*100 for r in rows], BLUE, "--"),
-    ], ylabel="value", xlabel="scan_x", suffix=" (%)", markers=markers)
+    ], ylabel="value", xlabel="scan_x", suffix=" (%)", markers=markers, chart_help=False)
     # Separate absolute-energy plot makes the retained-fraction scan interpretable.
+    threshold_key(absolute=True)
     plot_lines([r["opening_speed"] for r in rows], [
         (t("generation"), [r["recovered_energy"]/3600 for r in rows], GREEN, "-"),
         (t("penalty"), [-r["turbine_drag_energy"]/3600 for r in rows], RED, "-"),
-    ], ylabel="energy", xlabel="scan_x", markers=markers)
-    best = study["best"]
-    if best:
-        st.info(t("threshold_result", speed=best["opening_speed"],
-                  retained=best["retained_generation_pct"], exposure=best["exposure_time_pct"]))
-    else:
-        st.info(t("no_threshold"))
-    st.caption(t("scan_note")); st.caption(t("scan_formula"))
-    st.caption(t("closed_reference", spent=study["baseline"]["total_energy_spent"]/3600))
+    ], ylabel="energy", xlabel="scan_x", markers=markers, chart_help=False)
     st.subheader(t("results"))
+    st.markdown(f'**{t("user_summary")}**')
+    summary_cards(v2, "summary_v2_user", PURPLE)
+    st.markdown(f'**{t("recommended_summary")}**')
+    if best is None:
+        st.markdown(t("no_threshold"))
+    summary_cards(study["recommended"], "summary_v2_recommended", AMBER)
+    st.markdown(t("v2_results_intro"))
     table([("chosen_gate", [None if c["closed"] else c["opening"], best["opening_speed"] if best else None], "km/h", "neutral")]
-          + result_rows([v2, study["recommended"]]), [t("selected"), t("recommended")])
+          + result_rows([v2, study["recommended"]]), [t("selected"), t("recommended")], anchor_prefix="v2")
     if c["closed"]:
         st.caption(t("closed"))
     guide()
 with tabs[2]:
-    # Direct Comparison uses the generation-concentration recommendation.
+    with st.container(key="comparison_selection"):
+        compare_user = st.checkbox(t("compare_selector"), key="view_comparison_user", value=False)
+    # Direct Comparison uses the generation-concentration recommendation by default.
     # At constant speed there is no distinct recommendation: use always open.
     comparison_v1 = v1
-    comparison_v2 = (
-        study["recommended"]
-        if study["recommended"] is not None
-        else v1
-    )
+    comparison_v2 = (v2 if compare_user else
+                     study["recommended"] if study["recommended"] is not None else v1)
+    st.subheader(t("compare_title"))
+    explanation = t("compare_intro")
+    if compare_user:
+        explanation += " " + t("compare_closed" if c["closed"] else "compare_user")
+        if not c["closed"]:
+            explanation += " " + t("comparison_threshold", speed=c["opening"])
+    elif study["best"] is not None:
+        explanation += " " + t("compare_recommended")
+        explanation += " " + t("comparison_threshold", speed=study["best"]["opening_speed"])
+    else:
+        explanation += " " + t("comparison_no_threshold")
+    st.markdown(explanation)
     keys = ["generation", "penalty", "aero", "spent"]
     vals = [[r["recovered_energy"]/3600, -r["turbine_drag_energy"]/3600,
              -r["total_aerodynamic_energy"]/3600, -r["total_energy_spent"]/3600] for r in (comparison_v1, comparison_v2)]
     fig, ax = plt.subplots(figsize=(10, 4))
     positions = np.arange(len(keys))
     for i, (version, colour) in enumerate([(t("v1"), BLUE), (t("v2"), PURPLE)]):
-        ax.bar(positions + (i-.5)*.36, vals[i], width=.36, color=colour, label=version)
+        bars = ax.bar(positions + (i-.5)*.36, vals[i], width=.36, color=colour, label=version)
+        ax.bar_label(bars, labels=[f"{value:.2f}" for value in vals[i]],
+                     label_type="edge", padding=4, fontsize=8)
+    ax.margins(y=.18)
     ax.axhline(0, color="#666", linewidth=.8)
     ax.set_xticks(positions, [textwrap.fill(t(k), 24) for k in keys]); ax.tick_params(axis="x", labelsize=8)
     ax.set_ylabel(t("energy")); ax.legend(); fig.tight_layout()
-    st.markdown(t("chart_help"), help=t("sign_note"))
     st.pyplot(fig, width="stretch"); plt.close(fig)
-    st.caption(t("compare_note"))
-    if study["best"] is not None:
-        st.caption(t(
-            "comparison_threshold",
-            speed=study["best"]["opening_speed"],
-        ))
-    else:
-        st.caption(t("comparison_no_threshold"))
     if np.allclose(vals[0], vals[1]):
-        st.caption(t("equal_note"))
+        st.markdown(t("equal_note"))
     st.subheader(t("compare_lines"))
+    st.markdown(t("compare_cumulative") + (" " + t("compare_opening")
+                if gate_opening_time(comparison_v2) is not None else ""))
     plot_lines(
         comparison_v1["trace"]["time_edges_s"],
         [
@@ -555,9 +676,16 @@ with tabs[2]:
                 "--",
             ),
         ],
-        ylabel="energy",
+        ylabel="energy", chart_help=False,
     )
-    st.subheader(t("results"))
+    for column, result, version in zip(st.columns(2), [comparison_v1, comparison_v2], [1, 2]):
+        with column:
+            aerodynamic_pie(result, version)
+    st.subheader(t("compare_results"))
+    st.markdown(f'**{t("v1")}**')
+    summary_cards(comparison_v1, "summary_comparison_v1", BLUE)
+    st.markdown(f'**{t("comparison_summary")}**')
+    summary_cards(comparison_v2, "summary_comparison_v2", PURPLE)
     table(
         result_rows([comparison_v1, comparison_v2]),
         [t("v1"), t("v2")],
@@ -582,11 +710,6 @@ if c["extra"]:
             alternative_config["distance_m"] = reference_distance
             alternative_study = analyse(alternative_config)
 
-            st.info(t(
-                "normalized_reference",
-                distance=reference_distance / 1000.0,
-                duration=reference_duration,
-            ))
 
         alternative_v1 = alternative_study["v1"]
         alternative_v2 = alternative_study["v2"]
@@ -606,8 +729,9 @@ if c["extra"]:
             c["sunlight"],
         )
 
-        # Explicit braking selection is required in this tab.
-        if c["braking"]:
+        # Calculated mode requires the main braking flag. Normalized mode uses
+        # the existing braking demand of its unchanged 20-second reference event.
+        if c["braking"] or c["normalize_braking"]:
             regen_standalone = (
                 alternative_study["baseline"]["braking_energy_to_dissipate"]
                 * REGEN_BRAKING_EFFICIENCY
@@ -622,18 +746,41 @@ if c["extra"]:
         regen_combined = float(
             np.sum(regen_combined_power) * z["dt_s"]
         )
+        st.info((t("normalized_event") + " " if c["normalize_braking"] else "")
+                + t("alternative_reference", duration=(f'{chosen["duration_s"]:.0f}'
+                    if c["normalize_braking"] else f'{chosen["duration_s"]:.2f}'),
+                    distance=chosen["distance_m"] / 1000,
+                    speed=chosen["distance_m"] / chosen["duration_s"] * 3.6))
         st.caption(t("best_note", version=t(best_version)))
+        if not c["braking"] and not c["normalize_braking"]:
+            st.markdown(t("calculated_braking_instruction"))
+        elif c["normalize_braking"] and c["final"] >= c["initial"]:
+            st.markdown(t("normalized_limitation"))
+        st.subheader(t("methods"))
+        method_values = [chosen["recovered_energy"]/3600, regen_standalone/3600, solar["solar_energy"]/3600]
+        highest = max(method_values)
+        explanation = t("methods_intro")
+        if highest > 0:
+            winners = [t(key) for key, value in zip(["generation", "regen", "solar"], method_values)
+                       if value == highest]
+            explanation += " " + t("methods_winner" if len(winners) == 1 else "methods_tie",
+                                    methods=", ".join(winners), energy=highest)
+        else:
+            explanation += " " + t("methods_zero")
+        st.markdown(explanation)
         fig, ax = plt.subplots(figsize=(10, 3.5))
         ax.bar([textwrap.fill(t("generation"), 26), t("regen"), t("solar")],
                [chosen["recovered_energy"]/3600, regen_standalone/3600, solar["solar_energy"]/3600],
                color=[GREEN, BLUE, AMBER])
-        ax.set_ylabel(t("energy")); ax.set_title(t("methods")); fig.tight_layout()
-        st.markdown(t("chart_help"), help=t("sign_note"))
+        ax.set_ylabel(t("energy")); fig.tight_layout()
         st.pyplot(fig, width="stretch"); plt.close(fig)
         st.caption(t("standalone_note"))
-        if not c["braking"]:
-            st.info(t("enable_braking_note"))
         st.subheader(t("combined"))
+        st.markdown(t("solar_note", sun=c["sunlight"], irr=SOLAR_IRRADIANCE, area=SOLAR_ROOF_AREA,
+                     panel=SOLAR_PANEL_EFFICIENCY*100, charge=SOLAR_CHARGE_EFFICIENCY*100,
+                     power=solar["solar_power"]))
+        st.markdown(t("regen_note", eff=REGEN_BRAKING_EFFICIENCY*100))
+        st.markdown(t("charge_note"))
         show = st.checkbox(t("combined_toggle"), key="view_combined")
         solar_power = np.full_like(z["time_s"], solar["solar_power"])
         combined_power = -z["propulsion_power"] + z["recovered_power"] + regen_combined_power + solar_power
@@ -643,12 +790,8 @@ if c["extra"]:
                   (t("solar"), cumulative(chosen, solar_power), AMBER, "-")]
         if show:
             series.append((t("combined_net"), cumulative(chosen, combined_power), PURPLE, "--"))
-        plot_lines(z["time_edges_s"], series, ylabel="energy")
-        st.caption(t("solar_note", sun=c["sunlight"], irr=SOLAR_IRRADIANCE, area=SOLAR_ROOF_AREA,
-                     panel=SOLAR_PANEL_EFFICIENCY*100, charge=SOLAR_CHARGE_EFFICIENCY*100,
-                     power=solar["solar_power"]))
-        st.caption(t("regen_note", eff=REGEN_BRAKING_EFFICIENCY*100))
-        st.caption(t("charge_note"))
+        plot_lines(z["time_edges_s"], series, ylabel="energy", chart_help=False)
+
         total = chosen["recovered_energy"] + regen_combined + solar["solar_energy"]
         st.subheader(t("method_table"))
         table([
