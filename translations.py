@@ -189,11 +189,11 @@ TEXT = {
 'speed_help': ('Average slow-driving speed: 30 km/h. Average medium-driving (suburban) speed: 60 km/h. Average fast-driving (highway) speed: 110 km/h.', 'Velocidad media de conducción lenta: 30 km/h. Velocidad media de conducción intermedia (periurbana): 60 km/h. Velocidad media de conducción rápida (autopista): 110 km/h.'),
 'grade_help': ('Flat road: 0%. Moderate slope: 5%. Steep slope: 10%.', 'Carretera llana: 0%. Pendiente moderada: 5%. Pendiente pronunciada: 10%.'),
 'closed_help': ('If this is selected, Tab 2 will represent the car as if it had no turbine attached at all.', 'Si se selecciona esta opción, la pestaña 2 representará el coche como si no llevara ninguna turbina instalada.'),
-'extra_help': ('Considers the regenerative effect of other modifications that could be done to the car, specifically regenerative braking and solar panels.', 'Considera el efecto regenerativo de otras modificaciones que podrían hacerse al coche, en concreto la frenada regenerativa y los paneles solares.'),
+'extra_help': ('Considers the regenerative effect of other modifications that could be done to the vehicle, specifically regenerative braking and solar panels.', 'Considera el efecto regenerativo de otras modificaciones que podrían hacerse al coche, en concreto la frenada regenerativa y los paneles solares.'),
 'braking_mode_label': ('Braking recovery mode', 'Modo de recuperación de frenada'),
 'calculated_braking': ('Calculated braking recovery', 'Recuperación de frenada calculada'),
-'normalized_braking': ('Normalized braking event (20 seconds)', 'Evento de frenada normalizado (20 segundos)'),
-'braking_mode_help': ('For calculated braking recovery, the [braking / deceleration](#braking-deceleration) case should be selected.', 'Para la recuperación de frenada calculada, debe seleccionarse el caso de [frenada / desaceleración](#braking-deceleration).'),
+'normalized_braking': ('Normalized braking event', 'Evento de frenada normalizado'),
+'braking_mode_help': ('Calculated braking recovery is sensitive to user-inputted distance, while normalized braking event is always calculated over a predefined event time. Results from this study are shown in the Alternative Energy Methods tab.', 'La recuperación de energía durante la frenada calculada depende de la distancia introducida por el usuario, mientras que el evento de frenado normalizado se calcula siempre sobre un intervalo de tiempo predefinido. Los resultados de este estudio se muestran en la pestaña "Métodos de energías alternativas."'),
 'calculated_braking_instruction': ('For calculated braking recovery, select [Analyse braking / deceleration](#braking-deceleration) in the main driving inputs.', 'Para la recuperación de frenada calculada, selecciona [Analizar frenada / desaceleración](#braking-deceleration) en los datos principales de conducción.'),
 
 'normalized_limitation': (
