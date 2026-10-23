@@ -428,10 +428,45 @@ def percent_text(value):
 
 
 def technical_key(kind):
+    keys = (
+        ["key_generation", "key_turbine_drag", "key_turbine_net"]
+        if kind == "turbine"
+        else ["key_generation", "key_propulsion", "key_drive_net"]
+    )
+
+    # Match the text colors to the existing graph colors.
+    key_colours = {
+        "key_generation": GREEN,
+        "key_turbine_drag": RED,
+        "key_turbine_net": BLUE,
+        "key_propulsion": RED,
+        "key_drive_net": BLUE,
+    }
+
     with st.expander(t("chart_help"), expanded=False):
-        keys = ["key_generation", "key_turbine_drag", "key_turbine_net"] if kind == "turbine" else [
-            "key_generation", "key_propulsion", "key_drive_net"]
-        st.markdown("\n".join("- " + t(key) for key in keys))
+        items = []
+
+        for key in keys:
+            # Separate the bold heading from its explanation.
+            heading, _, description = (
+                t(key).removeprefix("**").partition("**")
+            )
+
+            items.append(
+                f'<li>'
+                f'<span style="color:{key_colours[key]}; '
+                f'font-weight:700;">'
+                f'{html.escape(heading)}'
+                f'</span>'
+                f'{html.escape(description)}'
+                f'</li>'
+            )
+
+        st.markdown(
+            "<ul>" + "".join(items) + "</ul>",
+            unsafe_allow_html=True
+        )
+
 
 
 def version_graphs(result, prefix):
