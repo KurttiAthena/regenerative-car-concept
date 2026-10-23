@@ -811,12 +811,10 @@ if c["extra"]:
         st.caption(t("best_note", version=t(best_version)))
         if not c["braking"] and not c["normalize_braking"]:
             st.markdown(t("calculated_braking_instruction"))
-        elif (
-            c["normalize_braking"]
-            and alternative_study["config"]["final"]
-                >= alternative_study["config"]["initial"]
-        ):
+
+        elif c["normalize_braking"] and not c["braking"]:
             st.markdown(t("normalized_limitation"))
+
         st.subheader(t("methods"))
         method_values = [chosen["recovered_energy"]/3600, regen_standalone/3600, solar["solar_energy"]/3600]
         highest = max(method_values)
