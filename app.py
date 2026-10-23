@@ -300,7 +300,25 @@ def analyse(c):
                 recommended=recommended, best=best, scan=scan)
 
 
-if st.button(t("run"), type="primary", key="run", width="stretch"):
+
+invalid_calculated_mode = (
+    extra
+    and not normalize_braking
+    and not braking_mode
+)
+
+if invalid_calculated_mode:
+    st.warning(t("calculated_braking_instruction"))
+
+
+if st.button(
+    t("run"),
+    type="primary",
+    key="run",
+    width="stretch",
+    disabled=invalid_calculated_mode,
+):
+
     try:
         st.session_state.study = analyse(config)
         # Reset display switches after a new study, not on language changes.
@@ -697,17 +715,34 @@ if c["extra"]:
                 # Changes here affect only the alternative-methods tab.
         alternative_study = study
 
+
         if c["normalize_braking"]:
             reference_duration = 20.0
-
             alternative_config = dict(c)
 
-            if c["source"] == "manual" and c["initial"] > 0:
+            # Always build a genuine braking event,
+            # independent of the main checkbox.
+            if c["source"] == "cycle":
+                braking_event = get_cycle_event(
+                    cycle_map[c["cycle"]],
+                    c["condition"],
+                    braking_mode=True,
+                )
+                alternative_config["initial"] = braking_event["start_speed"]
+                alternative_config["final"] = braking_event["end_speed"]
+            else:
+                alternative_config["initial"] = c["initial"]
                 alternative_config["final"] = 0.0
 
+            alternative_config["braking"] = True
+
+            # Set distance so this linear braking
+            # event lasts exactly 20 seconds.
             average_speed_ms = (
-                alternative_config["initial"] + alternative_config["final"]
+                alternative_config["initial"]
+                + alternative_config["final"]
             ) / 7.2
+
             reference_distance = (
                 average_speed_ms * reference_duration
             )
@@ -717,15 +752,31 @@ if c["extra"]:
                 alternative_study = analyse(alternative_config)
 
 
+
         alternative_v1 = alternative_study["v1"]
         alternative_v2 = alternative_study["v2"]
 
+        def combined_energy_cost(result):
+            regen_credit = (
+                result["braking_energy_to_dissipate"]
+                * REGEN_BRAKING_EFFICIENCY
+                if c["braking"] or c["normalize_braking"]
+                else 0.0
+            )
+
+            return (
+                result["total_energy_spent"]
+                - result["recovered_energy"]
+                - regen_credit
+            )
+
         best_version = (
             "v2"
-            if alternative_v2["net_event_energy_after_recovery"]
-            < alternative_v1["net_event_energy_after_recovery"] - 1e-9
+            if combined_energy_cost(alternative_v2)
+            < combined_energy_cost(alternative_v1) - 1e-9
             else "v1"
         )
+
 
         chosen = alternative_study[best_version]
         z = chosen["trace"]
