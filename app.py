@@ -491,9 +491,24 @@ def version_graphs(result, prefix):
     if show_net:
         lines.append((t("net_turbine"), z["turbine_net_power"], BLUE, "--"))
     plot_lines(x, lines, chart_help=False)
+
     st.subheader(t("g2"))
     share = percentage(result["turbine_drag_energy"], result["total_aerodynamic_energy"])
-    st.markdown(t("g2_intro", share=percent_text(share)))
+
+    paragraph, bold_text, trailing = t(
+        "g2_intro", share=percent_text(share)
+    ).split("**")
+
+    # Display the explanatory paragraph normally.
+    st.markdown(paragraph.strip())
+
+    # Display the bold statistic on its own, centered line.
+    st.markdown(
+        f'<p style="text-align:center; font-weight:700; margin:1rem 0;">'
+        f'{html.escape(bold_text + trailing.strip())}</p>',
+        unsafe_allow_html=True,
+    )
+
     with st.expander(t("chart_help"), expanded=False):
         st.markdown(t("key_areas"))
         st.markdown("- " + t("key_vehicle_area", anchor=f"result-{prefix}-baseline")
@@ -507,13 +522,33 @@ def version_graphs(result, prefix):
     ax.set_xlabel(t("time")); ax.set_ylabel(t("power")); ax.grid(alpha=.15)
     ax.legend(loc="upper left", bbox_to_anchor=(0, 1.2), frameon=False, ncol=2, fontsize=8)
     fig.tight_layout(); st.pyplot(fig, width="stretch"); plt.close(fig)
+
     st.subheader(t("g3"))
-    explanation = t("g3_intro", aero=percent_text(result["recovery_vs_total_aero_pct"]),
-                    spent=percent_text(result["recovery_vs_total_spent_pct"]))
-    explanation += " " + t("g3_exclusions")
+
+    paragraph, bold_text, trailing = t(
+        "g3_intro",
+        aero=percent_text(result["recovery_vs_total_aero_pct"]),
+        spent=percent_text(result["recovery_vs_total_spent_pct"]),
+    ).split("**")
+
+    # Preserve the gates explanation for Version 2.
     if prefix == "v2":
-        explanation += " " + t("gates_propulsion_transition" if opening_time is not None else "gates_propulsion")
-    st.markdown(explanation)
+        paragraph = paragraph.strip() + " " + t(
+            "gates_propulsion_transition"
+            if opening_time is not None
+            else "gates_propulsion"
+        )
+
+    # Display only the explanatory paragraph.
+    st.markdown(paragraph.strip())
+
+    # Display the bold statistics centered underneath.
+    st.markdown(
+        f'<p style="text-align:center; font-weight:700; margin:1rem 0;">'
+        f'{html.escape(bold_text + trailing.strip())}</p>',
+        unsafe_allow_html=True,
+    )
+
     st.markdown(f'<span id="net-{prefix}-drive"></span>', unsafe_allow_html=True)
     with st.container(key=f"centered_net_{prefix}_drive"):
         show_balance = st.checkbox(t("net_drive_toggle"), key=f"view_{prefix}_drive")
