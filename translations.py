@@ -143,12 +143,21 @@ TEXT = {
 
 'normalize_braking': ('Use normalized braking event', 'Usar frenada normalizada'),
 
+
 "normalize_braking_help": (
-    "Uses the same initial/final speeds over 20 seconds. "
-    "Turbine, braking and solar are recalculated together in that tab only.",
-    "Usa las mismas velocidades inicial y final durante 20 segundos. "
-    "Turbina, frenada y solar se recalculan juntas solo en esa pestaña.",
+    "Models a 20-second braking event: manual speed "
+    "to 0 km/h, or reversed endpoints of the selected "
+    "driving scenario. Distance is derived from the "
+    "20-second speed profile. Other tabs keep the "
+    "entered distance.",
+    "Simula un evento de frenada de 20 segundos: "
+    "desde la velocidad manual hasta 0 km/h, o "
+    "invirtiendo las velocidades del escenario "
+    "seleccionado. La distancia se calcula a partir "
+    "del perfil de 20 segundos. Las demás pestañas "
+    "mantienen la distancia introducida.",
 ),
+
 
 "normalized_reference": (
     "Alternative-methods reference: {duration:.0f} seconds, "
