@@ -576,15 +576,61 @@ def summary_cards(result, key, accent=BLUE):
                     f'{html.escape(number)}</div></div>', unsafe_allow_html=True)
 
 
+
 def threshold_key(absolute=False):
-    keys = ["scan_key_generation", "scan_key_drag"] if absolute else [
-        "scan_key_retained", "scan_key_exposure", "scan_key_score"]
+    keys = (
+        ["scan_key_generation", "scan_key_drag"]
+        if absolute
+        else ["scan_key_retained", "scan_key_exposure", "scan_key_score"]
+    )
+
     if not c["closed"]:
         keys.append("scan_key_user")
+
     if study["best"]:
-        keys.append("scan_key_best_energy" if absolute else "scan_key_best")
+        keys.append(
+            "scan_key_best_energy" if absolute else "scan_key_best"
+        )
+
+    # Match Chart Key headings to the actual graph colors.
+    key_colours = {
+        "scan_key_retained": GREEN,
+        "scan_key_exposure": RED,
+        "scan_key_score": BLUE,
+        "scan_key_user": PURPLE,
+        "scan_key_best": AMBER,
+        "scan_key_generation": GREEN,
+        "scan_key_drag": RED,
+        "scan_key_best_energy": AMBER,
+    }
+
     with st.expander(t("chart_help"), expanded=False):
-        st.markdown("\n".join("- " + t(key) for key in keys))
+        items = []
+
+        for key in keys:
+            # Separate the bold heading from its explanation.
+            heading, separator, description = (
+                t(key).removeprefix("**").partition("**")
+            )
+
+            if not separator:
+                items.append(f"<li>{html.escape(t(key))}</li>")
+                continue
+
+            items.append(
+                f'<li>'
+                f'<span style="color:{key_colours[key]}; '
+                f'font-weight:700;">'
+                f'{html.escape(heading)}'
+                f'</span>'
+                f'{html.escape(description)}'
+                f'</li>'
+            )
+
+        st.markdown(
+            "<ul>" + "".join(items) + "</ul>",
+            unsafe_allow_html=True
+        )
 
 
 def aerodynamic_pie(result, version):
