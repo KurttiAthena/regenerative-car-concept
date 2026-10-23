@@ -504,7 +504,7 @@ def version_graphs(result, prefix):
 
     # Display the bold statistic on its own, centered line.
     st.markdown(
-        f'<p style="text-align:center; font-weight:700; margin:1rem 0;">'
+        f'<p style="text-align:center; font-weight:700; margin:0.5rem 0;">'
         f'{html.escape(bold_text + trailing.strip())}</p>',
         unsafe_allow_html=True,
     )
@@ -544,7 +544,7 @@ def version_graphs(result, prefix):
 
     # Display the bold statistics centered underneath.
     st.markdown(
-        f'<p style="text-align:center; font-weight:700; margin:1rem 0;">'
+        f'<p style="text-align:center; font-weight:700; margin:0.5rem 0;">'
         f'{html.escape(bold_text + trailing.strip())}</p>',
         unsafe_allow_html=True,
     )
