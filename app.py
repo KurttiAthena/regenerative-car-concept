@@ -201,8 +201,8 @@ with st.container(border=True, key="analysis_inputs"):
             normalize_braking = alternative_braking_mode == "normalized_braking"
             if extra and normalize_braking:
                 st.caption(t("normalize_braking_help"))
-            elif extra and not st.session_state.get("braking", False):
-                st.markdown(t("calculated_braking_instruction"))
+            # elif extra and not st.session_state.get("braking", False):
+               # st.markdown(t("calculated_braking_instruction"))
             
     with right:
         with st.container(border=True, key="driving_inputs"):
